@@ -1,0 +1,6 @@
+Queue and play music via web browser. Primary use case is RPi plugged into an external speaker.
+Will probably work elsewhere but I'm not guaranteeing anything
+
+Requires pygame, mutagen.
+
+Might need updated typing_extensions depending on what python version is being shipped
