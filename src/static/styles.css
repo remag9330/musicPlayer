@@ -1,0 +1,93 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    max-width: 600px;
+    width: 100%;
+    margin: auto;
+    padding: 0 0.5em 0 0.5em;
+}
+
+button {
+    height: 2.5em;
+}
+
+.hidden {
+    display: none;
+}
+
+#queue {
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+
+#queue_url_label {
+    display: block;
+    margin-bottom: 0.5em;
+    display: flex;
+}
+
+#queue_url_label input {
+    flex-grow: 1;
+    margin-left: 0.5em;
+}
+
+#queue_priority_label {
+    display: block;
+    margin-bottom: 0.5em;
+}
+
+#queue_submit {
+    display: block;
+    width: 100%;
+    margin: auto;
+}
+
+
+#playing {
+    margin-bottom: 0.5em;
+}
+
+#playing > *:not(:last-child) {
+    padding-bottom: 0.5em;
+}
+
+#playing img {
+    display: block;
+    margin: auto;
+    max-width: 100%;
+}
+
+#playing_controls {
+    text-align: center;
+}
+
+#playing_controls > form {
+    display: inline;
+}
+
+#playing_controls > form:not(:last-child) {
+    margin-right: 0.5em;
+}
+
+
+#upcoming ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#upcoming li {
+    display: flex;
+    align-items: center;
+}
+
+#upcoming li:not(:last-child) {
+    margin-bottom: 0.5em;
+}
+
+#upcoming li img {
+    max-width: 150px;
+    margin-right: 1em;
+}
