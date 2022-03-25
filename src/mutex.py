@@ -14,9 +14,8 @@ class Mutex(Generic[T]):
         @property
         def value(self) -> U:
             return self.mutex._value
-
-        @value.setter
-        def value(self, value: U):
+            
+        def replace_value(self, value: U):
             self.mutex._value = value
 
         def __enter__(self) -> Self:

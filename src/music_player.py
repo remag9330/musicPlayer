@@ -49,10 +49,10 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 			sq.value.next_song()
 
 	elif isinstance(cmd, VolumeUpCommand):
-		speaker.set_volume(speaker.get_volume() + 0.1)
+		speaker().set_volume(speaker().get_volume() + 0.1)
 
 	elif isinstance(cmd, VolumeDownCommand):
-		speaker.set_volume(speaker.get_volume() - 0.1)
+		speaker().set_volume(speaker().get_volume() - 0.1)
 
 	else:
 		exhausted: Never = cmd

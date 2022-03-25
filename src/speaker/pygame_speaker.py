@@ -1,6 +1,8 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide" # Stop pygame printing things on import
 
+from .abstract_speaker import AbstractSpeaker
+
 from mutex import Mutex
 
 import pygame
@@ -8,20 +10,20 @@ import pygame
 pygame.mixer.init()
 music = Mutex(pygame.mixer.music)
 
-class Speaker:
-    def load(self, filename: str):
+class PygameSpeaker(AbstractSpeaker):
+    def load(self, filename: str) -> None:
         with music.acquire() as m:
             m.value.load(filename)
 
-    def play(self):
+    def play(self) -> None:
         with music.acquire() as m:
             m.value.play()
 
-    def pause(self):
+    def pause(self) -> None:
         with music.acquire() as m:
             m.value.pause()
 
-    def unpause(self):
+    def unpause(self) -> None:
         with music.acquire() as m:
             m.value.unpause()
 
@@ -37,8 +39,8 @@ class Speaker:
         with music.acquire() as m:
             return m.value.get_volume()
 
-    def set_volume(self, volume: float):
+    def set_volume(self, volume: float) -> None:
         with music.acquire() as m:
             m.value.set_volume(min(1.0, max(0.0, volume)))
 
-speaker = Speaker()
+speaker = PygameSpeaker()

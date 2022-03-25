@@ -19,13 +19,13 @@ class PlayingSong:
 		self.load()
 
 	def load(self):
-		speaker.load(self.song.path)
+		speaker().load(self.song.path)
 
 	def play(self):
 		if self.playing_state == PlayingState.NotStarted:
-			speaker.play()
+			speaker().play()
 		elif self.playing_state == PlayingState.Paused:
-			speaker.unpause()
+			speaker().unpause()
 
 		self.playing_state = PlayingState.Playing
 
@@ -34,13 +34,13 @@ class PlayingSong:
 			return
 
 		self.playing_state = PlayingState.Paused
-		speaker.pause()
+		speaker().pause()
 	
 	def is_finished(self) -> bool:
-		return self.playing_state == PlayingState.Playing and not speaker.get_busy()
+		return self.playing_state == PlayingState.Playing and not speaker().get_busy()
 	
 	def current_elapsed_time_secs(self) -> Optional[float]:
-		pos = speaker.get_pos()
+		pos = speaker().get_pos()
 		if pos == -1:
 			return None
 		

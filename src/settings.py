@@ -8,3 +8,5 @@ WEBSERVER_PORT = 80
 
 YOUTUBE_DL_COMMAND = "C:/music_player/youtube-dl.exe"
 FFMPEG_LOCATION = "C:/music_player/ffmpeg/bin/"
+
+PREFERRED_AUDIO_OUTPUT_ORDER = ["vlc", "pygame"]
