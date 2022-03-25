@@ -75,6 +75,10 @@ button {
     min-width: 50px;
 }
 
+.controls input[type="range"] {
+    vertical-align: middle;
+}
+
 
 #upcoming ol {
     list-style: none;
