@@ -1,5 +1,6 @@
 import base64
 from enum import Enum, auto
+import os
 from typing import Optional
 
 from mutagen.mp3 import MP3
@@ -31,7 +32,12 @@ class Song:
 
 	@property
 	def thumbnail_path(self) -> str:
-		return self.path.replace(".mp3", ".jpg")
+		jpg = self.path.replace(".mp3", ".jpg")
+		webp = self.path.replace(".mp3", ".webp")
+		if os.path.isfile(webp):
+			return webp
+		
+		return jpg
 
 	def length_human_readable(self) -> str:
 		return hours_mins_secs_to_human_readable(secs_to_hours_mins_secs(self.length_secs))
