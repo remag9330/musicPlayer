@@ -2,8 +2,7 @@ from enum import Enum, auto
 from typing import Optional, Tuple
 
 from song import NullSong, Song
-
-import pygame
+from speaker import speaker
 
 from utils import hours_mins_secs_to_human_readable, secs_to_hours_mins_secs
 
@@ -20,13 +19,13 @@ class PlayingSong:
 		self.load()
 
 	def load(self):
-		pygame.mixer.music.load(filename=self.song.path)
+		speaker.load(self.song.path)
 
 	def play(self):
 		if self.playing_state == PlayingState.NotStarted:
-			pygame.mixer.music.play()
+			speaker.play()
 		elif self.playing_state == PlayingState.Paused:
-			pygame.mixer.music.unpause()
+			speaker.unpause()
 
 		self.playing_state = PlayingState.Playing
 
@@ -35,13 +34,13 @@ class PlayingSong:
 			return
 
 		self.playing_state = PlayingState.Paused
-		pygame.mixer.music.pause()
+		speaker.pause()
 	
 	def is_finished(self) -> bool:
-		return self.playing_state == PlayingState.Playing and not pygame.mixer.music.get_busy()
+		return self.playing_state == PlayingState.Playing and not speaker.get_busy()
 	
 	def current_elapsed_time_secs(self) -> Optional[float]:
-		pos = pygame.mixer.music.get_pos()
+		pos = speaker.get_pos()
 		if pos == -1:
 			return None
 		

@@ -1,20 +1,21 @@
 import pathlib
 import threading
-import time
 import logging
 import queue
 from typing import Optional, TypeVar
+from typing_extensions import Never
 
 from mutex import Mutex
 
 from song import DownloadState, Song
-from commands import Command, PlayCommand, PauseCommand, QueueCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeDownCommand, VolumeUpCommand
 from song_queue import SongQueue
+from speaker import speaker
 from youtube_dl import download_audio, get_filename
 
 def start_music_player(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
 	while True:
-		cmd = try_get_no_wait(event_queue)
+		cmd = try_get(event_queue)
 
 		if cmd is not None:
 			process_cmd(song_queue, cmd)
@@ -22,8 +23,6 @@ def start_music_player(event_queue: queue.Queue[Command], song_queue: Mutex[Song
 		with song_queue.acquire() as sq:
 			if sq.value.current_song_finished():
 				sq.value.next_song()
-
-		time.sleep(1)
 
 def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 	logging.info(f"Processing cmd: '{cmd}'")
@@ -45,14 +44,24 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 			else:
 				sq.value.queue_song(song)
 
-	else: # SkipCommand
+	elif isinstance(cmd, SkipCommand):
 		with song_queue.acquire() as sq:
 			sq.value.next_song()
 
+	elif isinstance(cmd, VolumeUpCommand):
+		speaker.set_volume(speaker.get_volume() + 0.1)
+
+	elif isinstance(cmd, VolumeDownCommand):
+		speaker.set_volume(speaker.get_volume() - 0.1)
+
+	else:
+		exhausted: Never = cmd
+		raise Exception(f"Unknown command {exhausted}")
+
 T = TypeVar("T")
-def try_get_no_wait(q: queue.Queue[T]) -> Optional[T]:
+def try_get(q: queue.Queue[T]) -> Optional[T]:
 	try:
-		return q.get_nowait()
+		return q.get(timeout=1)
 	except queue.Empty:
 		return None
 
@@ -80,3 +89,5 @@ def download_song(url: str, s: Song) -> None:
 	except:
 		logging.exception("Failed to download, setting .downloading to Error")
 		s.downloading = DownloadState.Error
+
+# pyright: reportUnnecessaryIsInstance=false

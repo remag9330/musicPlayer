@@ -11,4 +11,15 @@ class QueueCommand:
 
 class SkipCommand: pass
 
-Command = Union[PlayCommand, PauseCommand, QueueCommand, SkipCommand]
+class VolumeUpCommand: pass
+
+class VolumeDownCommand: pass
+
+Command = Union[
+	PlayCommand,
+	PauseCommand,
+	QueueCommand,
+	SkipCommand,
+	VolumeUpCommand,
+	VolumeDownCommand
+]

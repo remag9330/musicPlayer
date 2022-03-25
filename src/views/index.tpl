@@ -34,6 +34,13 @@
                 <form method="POST" action="/skip">
                     <button type="submit">Skip</button>
                 </form>
+                <form method="POST" action="/volume">
+                    <button type="submit" name="direction" value="up">Vol. Up</button>
+                </form>
+                <form method="POST" action="/volume">
+                    <button type="submit" name="direction" value="down">Vol. Down</button>
+                </form>
+                <span>Volume: {{current_volume}}%
             </div>
         </div>
 

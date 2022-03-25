@@ -4,8 +4,6 @@ import sys
 import threading
 import queue
 
-os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide" # Stop pygame printing things on import
-
 from mutex import Mutex
 
 from song_queue import SongQueue
@@ -13,9 +11,6 @@ from commands import Command
 from music_player import start_music_player
 from webserver import start_webserver
 
-import pygame
-
-pygame.mixer.init()
 
 def main():
 	logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
