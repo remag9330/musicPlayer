@@ -59,16 +59,20 @@ button {
     max-width: 100%;
 }
 
-#playing_controls {
+.controls {
     text-align: center;
 }
 
-#playing_controls > form {
+.controls > form {
     display: inline;
 }
 
-#playing_controls > form:not(:last-child) {
+.controls > form:not(:last-child) {
     margin-right: 0.5em;
+}
+
+.controls button {
+    min-width: 50px;
 }
 
 

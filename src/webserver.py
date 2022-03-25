@@ -3,7 +3,7 @@ import queue
 
 from mutex import Mutex
 from song_queue import SongQueue
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeDownCommand, VolumeUpCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand
 from speaker import speaker
 
 from bottle import get, post, run, template, static_file, request, response, redirect
@@ -24,7 +24,7 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 	@get("/")
 	def index():
 		with song_queue.acquire() as sq:
-			current_volume = round(speaker().get_volume() * 100 / 10) * 10 # Round to nearest 10
+			current_volume = speaker().get_volume()
 			return template("index", song_queue=sq.value, current_volume=current_volume)
 
 	@get("/static/<filename:path>")
@@ -43,12 +43,15 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 
 	@post("/volume")
 	def volume():
-		dir = request.params["direction"]
-		if dir == "up":
-			event_queue.put_nowait(VolumeUpCommand())
-		elif dir == "down":
-			event_queue.put_nowait(VolumeDownCommand())
-		else:
+		try:
+			vol = request.params["volume"]
+			if not isinstance(vol, str):
+				raise Exception(f"Unknown type for vol")
+
+			vol = float(vol)
+			event_queue.put_nowait(VolumeCommand(vol))
+		except:
+			logging.exception("Bad input for volume endpoint")
 			response.status = 400
 			error_message = f"No such volume direction '{dir}'. Must be either 'up' or 'down'"
 			return template("error", error_message=error_message)

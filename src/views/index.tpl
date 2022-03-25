@@ -1,4 +1,5 @@
 %from song import DownloadState
+%from playing_song import PlayingState
 
 <!DOCTYPE html>
 <html lang="en">
@@ -24,23 +25,34 @@
             <img src="data:image/jpg;base64, {{song_queue.currently_playing.song.thumbnail_base64()}}" alt="{{song_queue.currently_playing.song.name}}" />
             <div>{{song_queue.currently_playing.song.name}}</div>
             <div>{{song_queue.currently_playing.current_elapsed_time_human_readable()}} / {{song_queue.currently_playing.song.length_human_readable()}}</div>
-            <div id="playing_controls">
-                <form method="POST" action="/pause">
-                    <button type="submit">Pause</button>
-                </form>
-                <form method="POST" action="/play">
-                    <button type="submit">Play</button>
-                </form>
+            <div id="playing_controls" class="controls">
+                %if song_queue.currently_playing.playing_state == PlayingState.Playing:
+                    <form method="POST" action="/pause">
+                        <button type="submit">⏸</button>
+                    </form>
+                %else:
+                    <form method="POST" action="/play">
+                        <button type="submit">▶</button>
+                    </form>
+                %end
+
                 <form method="POST" action="/skip">
-                    <button type="submit">Skip</button>
+                    <button type="submit">⏭</button>
                 </form>
+
+                <span>
+                    %if current_volume == 0:
+                        🔈
+                    %elif current_volume < 0.4:
+                        🔉
+                    %else:
+                        🔊
+                    %end
+                </span>
                 <form method="POST" action="/volume">
-                    <button type="submit" name="direction" value="up">Vol. Up</button>
+                    <input type="range" name="volume" min="0" max="1" step="0.1" value="{{current_volume}}">
+                    <button type="submit">✔</button>
                 </form>
-                <form method="POST" action="/volume">
-                    <button type="submit" name="direction" value="down">Vol. Down</button>
-                </form>
-                <span>Volume: {{current_volume}}%
             </div>
         </div>
 

@@ -8,7 +8,7 @@ from typing_extensions import Never
 from mutex import Mutex
 
 from song import DownloadState, Song
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeDownCommand, VolumeUpCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand
 from song_queue import SongQueue
 from speaker import speaker
 from youtube_dl import download_audio, get_filename
@@ -48,11 +48,8 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 		with song_queue.acquire() as sq:
 			sq.value.next_song()
 
-	elif isinstance(cmd, VolumeUpCommand):
-		speaker().set_volume(speaker().get_volume() + 0.1)
-
-	elif isinstance(cmd, VolumeDownCommand):
-		speaker().set_volume(speaker().get_volume() - 0.1)
+	elif isinstance(cmd, VolumeCommand):
+		speaker().set_volume(cmd.volume)
 
 	else:
 		exhausted: Never = cmd

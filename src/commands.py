@@ -11,15 +11,14 @@ class QueueCommand:
 
 class SkipCommand: pass
 
-class VolumeUpCommand: pass
-
-class VolumeDownCommand: pass
+class VolumeCommand:
+	def __init__(self, volume: int) -> None:
+		self.volume = volume
 
 Command = Union[
 	PlayCommand,
 	PauseCommand,
 	QueueCommand,
 	SkipCommand,
-	VolumeUpCommand,
-	VolumeDownCommand
+	VolumeCommand
 ]
