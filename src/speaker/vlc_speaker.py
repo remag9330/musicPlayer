@@ -23,6 +23,9 @@ class VlcSpeaker(AbstractSpeaker):
         with self.__track.acquire() as track:
             if track.value:
                 track.value.play()
+                # MediaPlayer.is_playing() will return False _immediately_ after .play(), so we need
+                # to wait a split second so we don't end up changing songs after returning from here.
+                time.sleep(0.5)
 
         self._update_track_volume()
 
@@ -33,9 +36,6 @@ class VlcSpeaker(AbstractSpeaker):
 
     def unpause(self) -> None:
         self.play()
-        # MediaPlayer.is_playing() will return False _immediately_ after .play(), so we need
-        # to wait a split second so we don't end up changing songs after returning from here.
-        time.sleep(0.5)
 
     def get_busy(self) -> bool:
         with self.__track.acquire() as track:
