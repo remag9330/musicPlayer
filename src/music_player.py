@@ -1,7 +1,9 @@
+import os
 import pathlib
 import threading
 import logging
 import queue
+from urllib.parse import urlparse, parse_qs
 from typing import Optional, TypeVar
 from typing_extensions import Never
 
@@ -64,7 +66,7 @@ def try_get(q: queue.Queue[T]) -> Optional[T]:
 		return None
 
 def background_download_song_if_necessary(url: str) -> Song:
-	filename = get_filename(url)
+	filename = try_get_filename(url)
 	pathname = pathlib.Path(filename)
 
 	if pathname.is_file():
@@ -75,6 +77,28 @@ def background_download_song_if_necessary(url: str) -> Song:
 		s = Song(pathname.stem, filename, DownloadState.Downloading)
 		background_download_song(url, s)
 		return s
+
+def try_get_filename(url: str) -> str:
+	import pdb; pdb.set_trace()
+	if "youtube.com" in url.lower():
+		try:
+			logging.info("Attempting to extract existing video's path")
+			parsed = urlparse(url)
+			vid_id = parse_qs(parsed.query)["v"][0]
+			logging.debug(f"video id: {vid_id}")
+
+			curr_path = os.path.join(settings.MUSIC_DIR, vid_id)
+			files = [f for f in os.listdir(curr_path) if f.endswith(".mp3")]
+			logging.debug(f"Files found: {len(files)}")
+			if len(files) == 1:
+				filename = files[0]
+				result = os.path.join(curr_path, filename)
+				logging.info(f"Found cached path: {result}")
+				return result
+		except:
+			logging.exception("Could not specifically parse youtube path, falling back to ytdl")
+
+	return get_filename(url)
 
 def background_download_song(url: str, s: Song) -> None:
 	t = threading.Thread(target=download_song, args=(url, s), daemon=True)
