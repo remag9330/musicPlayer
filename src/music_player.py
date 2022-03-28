@@ -12,6 +12,7 @@ from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipComma
 from song_queue import SongQueue
 from speaker import speaker
 from youtube_dl import download_audio, get_filename
+import settings
 
 def start_music_player(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
 	while True:
@@ -79,10 +80,15 @@ def background_download_song(url: str, s: Song) -> None:
 	t = threading.Thread(target=download_song, args=(url, s), daemon=True)
 	t.start()
 
+__downloader_semaphore = threading.BoundedSemaphore(settings.MAX_PARALLEL_DOWNLOADS)
+
 def download_song(url: str, s: Song) -> None:
 	try:
-		download_audio(url, s.set_download_percentage)
-		s.downloading = DownloadState.Downloaded
+		logging.info("Waiting to acquire semaphore...")
+		with __downloader_semaphore:
+			logging.info("Semaphore acquired, starting download")
+			download_audio(url, s.set_download_percentage)
+			s.downloading = DownloadState.Downloaded
 	except:
 		logging.exception("Failed to download, setting .downloading to Error")
 		s.downloading = DownloadState.Error
