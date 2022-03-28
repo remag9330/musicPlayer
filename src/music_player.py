@@ -79,7 +79,6 @@ def background_download_song_if_necessary(url: str) -> Song:
 		return s
 
 def try_get_filename(url: str) -> str:
-	import pdb; pdb.set_trace()
 	if "youtube.com" in url.lower():
 		try:
 			logging.info("Attempting to extract existing video's path")
