@@ -1,4 +1,5 @@
-from typing import Tuple
+import logging
+from typing import Optional, Tuple
 
 def secs_to_hours_mins_secs(total_secs: float) -> Tuple[int, int, int]:
     secs = int(total_secs % 60)
@@ -17,3 +18,16 @@ def hours_mins_secs_to_human_readable(hms: Tuple[int, int, int]) -> str:
         return f"{hours}:{mins:02}:{secs:02}"
     else:
         return f"{mins:02}:{secs:02}"
+
+__yt_api_key: Optional[str] = None
+def get_yt_api_key() -> Optional[str]:
+    global __yt_api_key
+
+    if __yt_api_key is None:
+        try:
+            with open("./youtube_v3_api_key", "r") as f:
+                __yt_api_key = f.read()
+        except Exception as ex:
+            logging.info(f"Could not load youtube API key {ex}")
+    
+    return __yt_api_key

@@ -1,9 +1,7 @@
-import os
 import pathlib
 import threading
 import logging
 import queue
-from urllib.parse import urlparse, parse_qs
 from typing import Optional, TypeVar
 from typing_extensions import Never
 
@@ -11,9 +9,10 @@ from mutex import Mutex
 
 from song import DownloadState, Song
 from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand
+from song_filename_generator import get_filename
 from song_queue import SongQueue
 from speaker import speaker
-from youtube_dl import download_audio, get_filename
+import youtube_dl as ytdl
 import settings
 
 def start_music_player(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
@@ -66,7 +65,7 @@ def try_get(q: queue.Queue[T]) -> Optional[T]:
 		return None
 
 def background_download_song_if_necessary(url: str) -> Song:
-	filename = try_get_filename(url)
+	filename = get_filename(url)
 	pathname = pathlib.Path(filename)
 
 	if pathname.is_file():
@@ -78,26 +77,7 @@ def background_download_song_if_necessary(url: str) -> Song:
 		background_download_song(url, s)
 		return s
 
-def try_get_filename(url: str) -> str:
-	if "youtube.com" in url.lower():
-		try:
-			logging.info("Attempting to extract existing video's path")
-			parsed = urlparse(url)
-			vid_id = parse_qs(parsed.query)["v"][0]
-			logging.debug(f"video id: {vid_id}")
 
-			curr_path = os.path.join(settings.MUSIC_DIR, vid_id)
-			files = [f for f in os.listdir(curr_path) if f.endswith(".mp3")]
-			logging.debug(f"Files found: {len(files)}")
-			if len(files) == 1:
-				filename = files[0]
-				result = os.path.join(curr_path, filename)
-				logging.info(f"Found cached path: {result}")
-				return result
-		except:
-			logging.exception("Could not specifically parse youtube path, falling back to ytdl")
-
-	return get_filename(url)
 
 def background_download_song(url: str, s: Song) -> None:
 	t = threading.Thread(target=download_song, args=(url, s), daemon=True)
@@ -110,7 +90,7 @@ def download_song(url: str, s: Song) -> None:
 		logging.info("Waiting to acquire semaphore...")
 		with __downloader_semaphore:
 			logging.info("Semaphore acquired, starting download")
-			download_audio(url, s.set_download_percentage)
+			ytdl.download_audio(url, s.set_download_percentage)
 			s.downloading = DownloadState.Downloaded
 	except:
 		logging.exception("Failed to download, setting .downloading to Error")
