@@ -6,7 +6,9 @@ body {
     max-width: 600px;
     width: 100%;
     margin: auto;
+    margin-bottom: 1em;
     padding: 0 0.5em 0 0.5em;
+    font-family: sans-serif;
 }
 
 button {
@@ -17,25 +19,47 @@ button {
     display: none;
 }
 
+h1 {
+    font-family: serif;
+    text-align: center;
+    margin-bottom: 0;
+}
+
+h2 {
+    font-family: serif;
+    display: flex;
+    flex-direction: row;
+    font-weight: normal;
+}
+h2:before, h2:after{
+    content: "";
+    flex: 1 1;
+    border-bottom: 1px solid;
+    margin: auto;
+}
+h2:before {
+    margin-right: 10px
+}
+h2:after {
+    margin-left: 10px
+}
+
+
 #queue {
     padding-top: 1em;
     padding-bottom: 1em;
 }
 
-#queue_url_label {
-    display: block;
-    margin-bottom: 0.5em;
+#queue_inputs {
     display: flex;
+    gap: 0.5em;
+    align-items: center;
+    margin-bottom: 1em;
 }
 
-#queue_url_label input {
+#queue_url_input {
     flex-grow: 1;
-    margin-left: 0.5em;
-}
-
-#queue_priority_label {
-    display: block;
-    margin-bottom: 0.5em;
+    margin-right: 1em;
 }
 
 #queue_submit {
@@ -98,4 +122,13 @@ button {
 #upcoming li img {
     max-width: 150px;
     margin-right: 1em;
+}
+
+#upcoming > div {
+    text-align: center;
+}
+
+
+#playlist {
+    text-align: center;
 }

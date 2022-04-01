@@ -3,7 +3,7 @@ import queue
 
 from mutex import Mutex
 from song_queue import SongQueue
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand
 from speaker import speaker
 
 from bottle import get, post, run, template, static_file, request, response, redirect
@@ -43,6 +43,8 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 
 	@post("/volume")
 	def volume():
+		vol = ""
+
 		try:
 			vol = request.params["volume"]
 			if not isinstance(vol, str):
@@ -53,7 +55,7 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 		except:
 			logging.exception("Bad input for volume endpoint")
 			response.status = 400
-			error_message = f"No such volume direction '{dir}'. Must be either 'up' or 'down'"
+			error_message = f"Volume parameter not specified or invalid. Ensure it's a number. vol='{vol}'"
 			return template("error", error_message=error_message)
 			
 		return redirect("/")
@@ -74,5 +76,30 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 	def skip():
 		event_queue.put_nowait(SkipCommand())
 		return redirect("/")
+
+	@post("/playlist")
+	def playlist():
+		playlist_name = ""
+		shuffle = False
+
+		try:
+			playlist_name = request.params["playlist"]
+			if not isinstance(playlist_name, str):
+				raise Exception("Unknown type for playlist")
+
+			try:
+				shuffle: bool = request.params["shuffle"] != ""
+			except KeyError:
+				shuffle: bool = False
+
+			event_queue.put_nowait(ChangePlaylistCommand(playlist_name, shuffle))
+		except:
+			logging.exception("Bad input for playlist endpoint")
+			response.status = 400
+			error_message = f"Playlist parameters not specified or invalid: playlist='{playlist_name}', shuffle='{shuffle}'"
+			return template("error", error_message=error_message)
+
+		return redirect("/")
+
 	
 # pyright: reportGeneralTypeIssues=false, reportMissingTypeStubs=false, reportUnusedFunction=false, reportUnknownVariableType=false, reportUnknownParameterType=false, reportUnknownMemberType=false

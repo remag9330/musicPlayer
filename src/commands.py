@@ -15,10 +15,16 @@ class VolumeCommand:
 	def __init__(self, volume: int) -> None:
 		self.volume = volume
 
+class ChangePlaylistCommand:
+	def __init__(self, name: str, shuffle: bool) -> None:
+		self.name = name
+		self.shuffle = shuffle
+
 Command = Union[
 	PlayCommand,
 	PauseCommand,
 	QueueCommand,
 	SkipCommand,
-	VolumeCommand
+	VolumeCommand,
+	ChangePlaylistCommand
 ]

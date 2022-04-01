@@ -1,5 +1,6 @@
 %from song import DownloadState
 %from playing_song import PlayingState
+%from playlist import FilePlaylist
 
 <!DOCTYPE html>
 <html lang="en">
@@ -13,15 +14,22 @@
     </head>
 
     <body>
+        <h1>Music Player</h1>
         <div id="queue">
+            <h2>Queue</h2>
             <form method="POST" action="/queue">
-                <label id="queue_url_label">URL<input name="url" type="text" placeholder="URL to queue" /></label>
-                <label id="queue_priority_label">Play Next<input name="priority" type="checkbox" /></label>
+                <div id="queue_inputs">
+                    <label id="queue_url_label" for="queue_url_input">URL</label>
+                    <input id="queue_url_input" name="url" type="text" placeholder="URL to queue" />
+                    <label id="queue_priority_label" for="queue_priority_checkbox">Play Next</label>
+                    <input id="queue_priority_checkbox" name="priority" type="checkbox" />
+                </div>
                 <button id="queue_submit" type="submit">Queue</button>
             </form>
         </div>
 
         <div id="playing">
+            <h2>Currently Playing</h2>
             <img src="data:image/jpg;base64, {{song_queue.currently_playing.song.thumbnail_base64()}}" alt="{{song_queue.currently_playing.song.name}}" />
             <div>{{song_queue.currently_playing.song.name}}</div>
             <div>{{song_queue.currently_playing.current_elapsed_time_human_readable()}} / {{song_queue.currently_playing.song.length_human_readable()}}</div>
@@ -57,8 +65,9 @@
         </div>
 
         <div id="upcoming">
+            <h2>Upcoming</h2>
             %if len(song_queue.up_next) > 0:
-                <span>Up next:</span>
+                <div>Up next:</div>
                 <ol>
                     %for s in song_queue.up_next:
                         <li>
@@ -73,8 +82,26 @@
                     %end
                 </ol>
             %else:
-                <span>Nothing queued, playing random songs - go queue something!</span>
+                <div>Nothing queued, playing songs from the playlist - go queue something!</div>
             %end
+        </div>
+
+        <div id="playlist">
+            <h2>Playlist</h2>
+            <form method="POST" action="/playlist">
+                <label for="playlist_selector">Change playlist:</label>
+                <select id="playlist_selector" name="playlist">
+                    %for playlist in FilePlaylist.all_available_playlist_names():
+                        %selected = "selected" if playlist == song_queue.playlist.name else ""
+                        <option value="{{playlist}}" {{selected}}>{{playlist}}</option>
+                    %end
+                </select>
+                
+                <label for="playlist_shuffle">Shuffle</label>
+                <input id="playlist_shuffle" name="shuffle" type="checkbox" {{"checked" if song_queue.playlist.shuffle else ""}} />
+
+                <button type="submit">Change Playlist</button>
+            </form>
         </div>
     </body>
 </html>

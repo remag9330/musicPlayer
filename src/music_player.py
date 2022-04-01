@@ -8,7 +8,7 @@ from typing_extensions import Never
 from mutex import Mutex
 
 from song import DownloadState, Song
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand
 from song_filename_generator import get_filename
 from song_queue import SongQueue
 from speaker import speaker
@@ -52,6 +52,10 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 
 	elif isinstance(cmd, VolumeCommand):
 		speaker().set_volume(cmd.volume)
+
+	elif isinstance(cmd, ChangePlaylistCommand):
+		with song_queue.acquire() as sq:
+			sq.value.change_playlist(cmd.name, cmd.shuffle)
 
 	else:
 		exhausted: Never = cmd
