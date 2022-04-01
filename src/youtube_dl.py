@@ -16,6 +16,7 @@ def download_audio(url: str, progress_callback: Optional[Callable[[float], None]
 		YOUTUBE_DL,
 		url,
 		"--newline",
+		"--no-playlist",
 		"--extract-audio",
 		"--audio-format", "mp3",
 		"--write-thumbnail",
@@ -55,6 +56,7 @@ def get_title(url: str) -> str:
 	out = check_output([
 		YOUTUBE_DL,
 		url,
+		"--no-playlist",
 		"--skip-download",
 		"--get-title"
 	])
@@ -70,6 +72,7 @@ def get_id(url: str) -> str:
 	out = check_output([
 		YOUTUBE_DL,
 		url,
+		"--no-playlist",
 		"--skip-download",
 		"--get-id"
 	])
@@ -85,6 +88,7 @@ def get_filename(url: str) -> str:
 	out = check_output([
 		YOUTUBE_DL,
 		url,
+		"--no-playlist",
 		"--skip-download",
 		"--get-filename",
 		"-o", OUT_PATH
