@@ -88,6 +88,7 @@
 
         <div id="playlist">
             <h2>Playlist</h2>
+            
             <form method="POST" action="/playlist">
                 <label for="playlist_selector">Change playlist:</label>
                 <select id="playlist_selector" name="playlist">
@@ -101,6 +102,12 @@
                 <input id="playlist_shuffle" name="shuffle" type="checkbox" {{"checked" if song_queue.playlist.shuffle else ""}} />
 
                 <button type="submit">Change Playlist</button>
+            </form>
+
+            <form method="POST" action="createPlaylist">
+                <label for="playlist_create_input">Create Playlist</label>
+                <input id="playlist_create_input" name="url" placeholder="URL" />
+                <button type="submit">Create Playlist</button>
             </form>
         </div>
     </body>

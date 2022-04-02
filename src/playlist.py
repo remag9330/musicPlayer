@@ -3,6 +3,7 @@ import logging
 import os
 from random import choice
 import random
+from typing import Union
 
 from settings import MUSIC_DIR, PLAYLISTS_DIR
 from song import DownloadState, NullSong, Song
@@ -70,12 +71,25 @@ class FilePlaylist(Playlist):
         song_path = os.path.join(MUSIC_DIR, self.all_songs[self.current_song_idx])
         return self._song_from_path(song_path)
 
-    def add_song(self, song: Song) -> None:
-        path = os.path.relpath(song.path, MUSIC_DIR)
+    def add_song(self, song: Union[Song, str]) -> None:
+        full_path = song if isinstance(song, str) else song.path
+        path = os.path.relpath(full_path, MUSIC_DIR)
         self.all_songs.append(path)
 
         with open(self.filename, "w") as f:
             f.writelines("\n".join(self.all_songs))
+
+    @staticmethod
+    def create_playlist(name: str, filenames: list[str]) -> Playlist:
+        with open(os.path.join(PLAYLISTS_DIR, name), "w"):
+            pass # Just create
+
+        pl = FilePlaylist(name)
+
+        for filename in filenames:
+            pl.add_song(filename)
+
+        return pl
 
     @staticmethod
     def all_available_playlist_names() -> list[str]:

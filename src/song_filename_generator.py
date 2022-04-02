@@ -1,12 +1,11 @@
 import logging
 import os
+import sys
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
-import requests
-
-import youtube_dl as ytdl
-from utils import get_yt_api_key
+import youtube_dl as yt_dl
+import youtube_api as yt_api
 import settings
 
 def get_filename(url: str) -> str:
@@ -22,7 +21,7 @@ def get_filename(url: str) -> str:
 			return name
 
 	logging.info("Attempting to get filename from YTDL")
-	return ytdl.get_filename(url)
+	return yt_dl.get_filename(url)
 
 
 def try_get_youtube_filename_quick(url: str) -> Optional[str]:
@@ -52,6 +51,17 @@ def get_youtube_video_id_from_url(url: str) -> str:
 	logging.debug(f"video id: {vid_id}")
 	return vid_id
 
+def get_youtube_playlist_id_from_url(url: str) -> Optional[str]:
+	logging.info(f"Attempting to extract playlist id from {url}")
+	try:
+		parsed = urlparse(url)
+		playlist_id = parse_qs(parsed.query)["list"][0]
+		logging.debug(f"video id: {playlist_id}")
+		return playlist_id
+	except:
+		logging.exception("Could not get playlist ID")
+		return None
+
 def get_youtube_filename_from_cache(vid_id: str) -> Optional[str]:
 	try:
 		curr_path = os.path.join(settings.MUSIC_DIR, vid_id)
@@ -72,25 +82,21 @@ def get_youtube_filename_from_cache(vid_id: str) -> Optional[str]:
 	return None
 
 def get_youtube_filename_from_api(vid_id: str) -> Optional[str]:
-	try:
-		api_key = get_yt_api_key()
-		if api_key is None:
-			logging.info("No API key supplied, supplying one can improve RPi performance")
-			return None
+	name = yt_api.get_video_name(vid_id)
+	if name is None:
+		return None
 
-		r = requests.get(
-			f"https://www.googleapis.com/youtube/v3/videos?id={vid_id}&key={api_key}&part=snippet"
-		)
+	filename = get_youtube_filename(vid_id, name)
+	logging.info(f"Found API path {filename}")
+	return filename
 
-		if not r.ok:
-			logging.error(f"Error retrieving data from YT API: status_code: {r.status_code}, text: {r.text}")
-			return None
-		
-		name = r.json()["items"][0]["snippet"]["title"]
-		filename = os.path.join(settings.MUSIC_DIR, vid_id, name + ".mp3")
-		logging.info(f"Found API path {filename}")
-		return filename
-	except:
-		logging.exception("Error getting filename from YT API")
-		
-	return None
+def get_youtube_filename(vid_id: str, name: str):
+	return sanitise_filename(
+		os.path.join(settings.MUSIC_DIR, vid_id, name + ".mp3")
+	)
+
+def sanitise_filename(p: str) -> str:
+	if sys.platform != "win32":
+		return p
+
+	return p.replace("?", "")

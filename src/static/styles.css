@@ -132,3 +132,7 @@ h2:after {
 #playlist {
     text-align: center;
 }
+
+#playlist form {
+    margin-bottom: 0.5em;
+}

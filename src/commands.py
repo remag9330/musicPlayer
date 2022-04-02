@@ -20,11 +20,16 @@ class ChangePlaylistCommand:
 		self.name = name
 		self.shuffle = shuffle
 
+class CreatePlaylistFromUrlCommand:
+	def __init__(self, url: str) -> None:
+		self.url = url
+
 Command = Union[
 	PlayCommand,
 	PauseCommand,
 	QueueCommand,
 	SkipCommand,
 	VolumeCommand,
-	ChangePlaylistCommand
+	ChangePlaylistCommand,
+	CreatePlaylistFromUrlCommand
 ]

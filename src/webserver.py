@@ -3,7 +3,7 @@ import queue
 
 from mutex import Mutex
 from song_queue import SongQueue
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand
 from speaker import speaker
 
 from bottle import get, post, run, template, static_file, request, response, redirect
@@ -16,7 +16,7 @@ def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQue
 		setup_routes(event_queue, song_queue)
 		logging.info("Routes set up. Starting web server")
 		run(host=WEBSERVER_IP, port=WEBSERVER_PORT, quiet=True, debug=True)
-		logging.warn("Webserver finised - this shouldn't normally happen?")
+		logging.warning("Webserver finished - this shouldn't normally happen?")
 	except:
 		logging.exception("Error occurred while running web server")
 
@@ -97,6 +97,24 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 			logging.exception("Bad input for playlist endpoint")
 			response.status = 400
 			error_message = f"Playlist parameters not specified or invalid: playlist='{playlist_name}', shuffle='{shuffle}'"
+			return template("error", error_message=error_message)
+
+		return redirect("/")
+
+	@post("/createPlaylist")
+	def createPlaylist():
+		url = ""
+
+		try:
+			url = request.params["url"]
+			if not isinstance(url, str):
+				raise Exception("Unknown type for url")
+
+			event_queue.put_nowait(CreatePlaylistFromUrlCommand(url))
+		except:
+			logging.exception("Bad input for create playlist endpoint")
+			response.status = 400
+			error_message = f"Create playlist parameters not specified or invalid: url='{url}'"
 			return template("error", error_message=error_message)
 
 		return redirect("/")
