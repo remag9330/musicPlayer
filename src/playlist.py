@@ -51,7 +51,7 @@ class FilePlaylist(Playlist):
     def __init__(self, name: str) -> None:
         super().__init__(name)
         self.filename = os.path.join(PLAYLISTS_DIR, name)
-        self.current_song_idx: int = 0
+        self.current_song_idx: int = -1 # Start just before first, `get_next()` will "prime" to the first item
 
         with open(self.filename, "r") as f:
             self.all_songs = f.readlines()
