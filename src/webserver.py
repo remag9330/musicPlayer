@@ -83,7 +83,7 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 		shuffle = False
 
 		try:
-			playlist_name = request.params["playlist"]
+			playlist_name = request.forms.playlist
 			if not isinstance(playlist_name, str):
 				raise Exception("Unknown type for playlist")
 
