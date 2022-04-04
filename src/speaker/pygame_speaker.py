@@ -1,5 +1,6 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide" # Stop pygame printing things on import
+from typing import Tuple
 
 from .abstract_speaker import AbstractSpeaker
 
@@ -42,5 +43,8 @@ class PygameSpeaker(AbstractSpeaker):
     def set_volume(self, volume: float) -> None:
         with music.acquire() as m:
             m.value.set_volume(min(1.0, max(0.0, volume)))
+
+    def volume_min_max_step(self) -> Tuple[float, float, float]:
+        return (0.0, 1.0, 0.1)
 
 speaker = PygameSpeaker()

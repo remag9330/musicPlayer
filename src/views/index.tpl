@@ -58,7 +58,8 @@
                     %end
                 </span>
                 <form method="POST" action="/volume">
-                    <input type="range" name="volume" min="0" max="1" step="0.1" value="{{current_volume}}">
+                    %(vol_min, vol_max, vol_step) = vol_min_max_step
+                    <input type="range" name="volume" min="{{vol_min}}" max="{{vol_max}}" step="{{vol_step}}" value="{{current_volume}}">
                     <button type="submit">✔</button>
                 </form>
             </div>

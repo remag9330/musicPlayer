@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 class AbstractSpeaker:
     def load(self, filename: str) -> None:
         raise NotImplementedError()
@@ -21,4 +24,7 @@ class AbstractSpeaker:
         raise NotImplementedError()
 
     def set_volume(self, volume: float) -> None:
+        raise NotImplementedError()
+
+    def volume_min_max_step(self) -> Tuple[float, float, float]:
         raise NotImplementedError()

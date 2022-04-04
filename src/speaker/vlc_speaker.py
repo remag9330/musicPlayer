@@ -1,6 +1,6 @@
 import time
         
-from typing import Optional
+from typing import Optional, Tuple
 from .abstract_speaker import AbstractSpeaker
 
 from mutex import Mutex
@@ -62,6 +62,9 @@ class VlcSpeaker(AbstractSpeaker):
         with self.__track.acquire() as track:
             if track.value and track.value.is_playing():
                 track.value.audio_set_volume(int(self.__volume * 100))
+                
+    def volume_min_max_step(self) -> Tuple[float, float, float]:
+        return (0.0, 2.0, 0.1)
 
 speaker = VlcSpeaker()
 

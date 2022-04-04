@@ -25,7 +25,13 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 	def index():
 		with song_queue.acquire() as sq:
 			current_volume = speaker().get_volume()
-			return template("index", song_queue=sq.value, current_volume=current_volume)
+			vol_min_max_step = speaker().volume_min_max_step()
+			
+			return template("index",
+				song_queue=sq.value,
+				current_volume=current_volume,
+				vol_min_max_step=vol_min_max_step
+			)
 
 	@get("/static/<filename:path>")
 	def static(filename: str):
