@@ -1,7 +1,7 @@
 import logging
 from subprocess import CalledProcessError, Popen, check_output, PIPE, STDOUT
 import os
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 from settings import MUSIC_DIR, YOUTUBE_DL_COMMAND, FFMPEG_LOCATION
 
@@ -22,7 +22,7 @@ def download_audio(url: str, progress_callback: Optional[Callable[[float], None]
 		"--write-thumbnail",
 		"--ffmpeg-location", FFMPEG_LOCATION,
 		"-o", OUT_PATH
-	], universal_newlines=True, stdout=PIPE, stderr=STDOUT)
+	], universal_newlines=True, stdout=PIPE, stderr=STDOUT, preexec_fn=_preexec_fn())
 
 	if p.stdout is None:
 		raise Exception()
@@ -59,7 +59,7 @@ def get_title(url: str) -> str:
 		"--no-playlist",
 		"--skip-download",
 		"--get-title"
-	])
+	], preexec_fn=_preexec_fn())
 
 	title = out.decode("utf-8").strip()
 	
@@ -75,7 +75,7 @@ def get_id(url: str) -> str:
 		"--no-playlist",
 		"--skip-download",
 		"--get-id"
-	])
+	], preexec_fn=_preexec_fn())
 
 	id = out.decode("utf-8").strip()
 
@@ -92,7 +92,7 @@ def get_filename(url: str) -> str:
 		"--skip-download",
 		"--get-filename",
 		"-o", OUT_PATH
-	])
+	], preexec_fn=_preexec_fn())
 	
 	p = out.decode("utf-8").strip()
 	base = os.path.splitext(p)[0]
@@ -100,3 +100,9 @@ def get_filename(url: str) -> str:
 	
 	logging.info(f"Filename '{filename}' retrieved for '{url}'")
 	return filename
+
+def _preexec_fn() -> Union[None, Callable[[], Any]]:
+	if hasattr(os, "nice"):
+		return lambda: os.nice(10)
+	else:
+		return None
