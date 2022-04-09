@@ -104,15 +104,22 @@ def background_download_song(url: str, s: Song) -> None:
 __downloader_semaphore = threading.BoundedSemaphore(settings.MAX_PARALLEL_DOWNLOADS)
 
 def download_song(url: str, s: Song) -> None:
-	try:
-		logging.info("Waiting to acquire semaphore...")
-		with __downloader_semaphore:
-			logging.info("Semaphore acquired, starting download")
-			yt_dl.download_audio(url, s.set_download_percentage)
-			s.downloading = DownloadState.Downloaded
-	except:
-		logging.exception("Failed to download, setting .downloading to Error")
-		s.downloading = DownloadState.Error
+	attempts = 0
+
+	while attempts < 10:
+		attempts += 1
+
+		try:
+			logging.info("Waiting to acquire semaphore...")
+			with __downloader_semaphore:
+				logging.info("Semaphore acquired, starting download")
+				yt_dl.download_audio(url, s.set_download_percentage)
+				s.downloading = DownloadState.Downloaded
+		except:
+			logging.exception("Failed to download, setting .downloading to Error")
+			if attempts >= 10:
+				# Only set on final failure - otherwise it will get auto-removed from the queue
+				s.downloading = DownloadState.Error
 
 
 
