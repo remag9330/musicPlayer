@@ -1,13 +1,14 @@
-from typing import Union
+from typing import Optional, Union
 
 class PlayCommand: pass
 
 class PauseCommand: pass
 
 class QueueCommand:
-	def __init__(self, url: str, is_priority: bool = False):
+	def __init__(self, url: str, is_priority: bool = False, filename: Optional[str] = None):
 		self.url = url
 		self.is_priority = is_priority
+		self.filename = filename
 
 class SkipCommand: pass
 
@@ -24,6 +25,10 @@ class CreatePlaylistFromUrlCommand:
 	def __init__(self, url: str) -> None:
 		self.url = url
 
+class DeleteCommand:
+	def __init__(self, path: str) -> None:
+		self.path = path
+
 Command = Union[
 	PlayCommand,
 	PauseCommand,
@@ -31,5 +36,6 @@ Command = Union[
 	SkipCommand,
 	VolumeCommand,
 	ChangePlaylistCommand,
-	CreatePlaylistFromUrlCommand
+	CreatePlaylistFromUrlCommand,
+	DeleteCommand
 ]

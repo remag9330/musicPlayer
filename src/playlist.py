@@ -47,6 +47,17 @@ class AllAvailableCachedSongsPlaylist(Playlist):
     def add_song(self, song: Song) -> None:
         self.all_songs.add(song.path)
 
+    def remove_song(self, path: str) -> None:
+        try:
+            self.all_songs.remove(path)
+        except KeyError:
+            logging.exception(f"could not remove song from all_songs list, this might cause issues further down the line '{path}'")
+
+    def all_available_songs(self) -> list[Song]:
+        l = [self._song_from_path(s) for s in self.all_songs]
+        l.sort(key=lambda s: s.name)
+        return l
+
 class FilePlaylist(Playlist):
     def __init__(self, name: str) -> None:
         super().__init__(name)

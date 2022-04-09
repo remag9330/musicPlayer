@@ -13,8 +13,8 @@ class SongQueue:
 		self.currently_playing: PlayingSong = NullPlayingSong()
 		self.recently_played: list[Song] = []
 
-		self._default_all_playlist = AllAvailableCachedSongsPlaylist()
-		self.playlist: Playlist = self._default_all_playlist
+		self.default_all_playlist = AllAvailableCachedSongsPlaylist()
+		self.playlist: Playlist = self.default_all_playlist
 
 	def queue_song(self, song: Song) -> None:
 		self.up_next.append(song)
@@ -25,7 +25,7 @@ class SongQueue:
 		self._add_to_playlists(song)
 
 	def _add_to_playlists(self, song: Song) -> None:
-		self._default_all_playlist.add_song(song)
+		self.default_all_playlist.add_song(song)
 
 	def play(self) -> None:
 		self.currently_playing.play()
@@ -80,9 +80,9 @@ class SongQueue:
 
 	def change_playlist(self, name: str, shuffle: bool) -> None:
 		if name != self.playlist.name:
-			if name == self._default_all_playlist.name:
+			if name == self.default_all_playlist.name:
 				logging.info(f"Changing playlist back to default all song playlist")
-				self.playlist = self._default_all_playlist
+				self.playlist = self.default_all_playlist
 			else:
 				logging.info(f"Changing playlist to {name}")
 				self.playlist = FilePlaylist(name)

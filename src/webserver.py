@@ -1,14 +1,15 @@
 import logging
 import queue
+from pathlib import Path
 
 from mutex import Mutex
 from song_queue import SongQueue
-from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand
+from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand, DeleteCommand
 from speaker import speaker
 
 from bottle import get, post, run, template, static_file, request, response, redirect
 
-from settings import WEBSERVER_IP, WEBSERVER_PORT
+from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR
 
 def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
 	try:
@@ -124,6 +125,79 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 			return template("error", error_message=error_message)
 
 		return redirect("/")
+
+		
+	def _search_terms() -> str:
+		search_terms = ""
+		try:
+			search_terms = request.query.search or request.forms.search
+			if not isinstance(search_terms, str):
+				raise Exception("Unknown type for search_terms")
+		except:
+			logging.exception("Could not get search terms")
+
+		return search_terms or ""
+
+	@get("/songs")
+	def songs():
+		search_terms = _search_terms()
+		logging.info(f"search_terms = {search_terms}")
+
+		with song_queue.acquire() as sq:
+			songs = sq.value.default_all_playlist.all_available_songs()
+			if search_terms:
+				for term in search_terms.split():
+					songs = [s for s in songs if term.lower() in s.path.lower()]
+
+			return template("songs", songs=songs, search=search_terms)
+
+	@post("/songs/play")
+	def songs_play():
+		song_id = ""
+
+		try:
+			song_id = request.forms.id
+			if not isinstance(song_id, str):
+				raise Exception("Unknown type for song id")
+
+			music_dir = Path(MUSIC_DIR)
+			suggested_song_path = Path(song_id)
+			if not music_dir in suggested_song_path.parents:
+				raise Exception("Invalid song id")
+
+			event_queue.put_nowait(QueueCommand("", False, song_id))
+		except:
+			logging.exception("Bad input for play song")
+			response.status = 400
+			error_message = f"Play song parameters not specified or invalid: id='{song_id}'"
+			return template("error", error_message=error_message)
+
+		search = _search_terms()
+		return redirect(f"/songs?search={search}")
+
+	@post("/songs/delete")
+	def songs_delete():
+		song_id = ""
+
+		try:
+			song_id = request.forms.id
+			if not isinstance(song_id, str):
+				raise Exception("Unknown type for song id")
+
+			music_dir = Path(MUSIC_DIR)
+			suggested_song_path = Path(song_id)
+			if not music_dir in suggested_song_path.parents:
+				raise Exception("Invalid song id")
+
+			event_queue.put_nowait(DeleteCommand(song_id))
+		except:
+			logging.exception("Bad input for delete song")
+			response.status = 400
+			error_message = f"Delete song parameters not specified or invalid: id='{song_id}'"
+			return template("error", error_message=error_message)
+
+		search = _search_terms()
+		return redirect(f"/songs?search={search}")
 
 	
 # pyright: reportGeneralTypeIssues=false, reportMissingTypeStubs=false, reportUnusedFunction=false, reportUnknownVariableType=false, reportUnknownParameterType=false, reportUnknownMemberType=false

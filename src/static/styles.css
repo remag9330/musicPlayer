@@ -13,6 +13,7 @@ body {
 
 button {
     height: 2.5em;
+    min-width: 2.5em;
 }
 
 .hidden {
@@ -42,6 +43,31 @@ h2:before {
 }
 h2:after {
     margin-left: 10px
+}
+
+.flex_and_centre {
+    width: 100%;
+    display: flex;
+    gap: 1em;
+    align-items: center;
+}
+
+.flex_fill {
+    flex-grow: 1;
+}
+
+.centre {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.top_spacing {
+    margin-top: 1em;
+}
+
+.bottom_spacing {
+    margin-bottom: 1em;
 }
 
 

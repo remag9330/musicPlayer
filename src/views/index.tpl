@@ -17,7 +17,7 @@
         <h1>Music Player</h1>
         <div id="queue">
             <h2>Queue</h2>
-            <form method="POST" action="/queue">
+            <form method="POST" action="/queue" class="bottom_spacing">
                 <div id="queue_inputs">
                     <label id="queue_url_label" for="queue_url_input">URL</label>
                     <input id="queue_url_input" name="url" type="text" placeholder="URL to queue" />
@@ -26,6 +26,8 @@
                 </div>
                 <button id="queue_submit" type="submit">Queue</button>
             </form>
+
+            <a class="centre" href="/songs">Add existing song to playlist</a>
         </div>
 
         <div id="playing">
@@ -68,7 +70,6 @@
         <div id="upcoming">
             <h2>Upcoming</h2>
             %if len(song_queue.up_next) > 0:
-                <div>Up next:</div>
                 <ol>
                     %for s in song_queue.up_next:
                         <li>

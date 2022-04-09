@@ -1,4 +1,5 @@
 import pathlib
+import shutil
 import threading
 import logging
 import queue
@@ -9,7 +10,7 @@ from mutex import Mutex
 from playlist import FilePlaylist, Playlist
 
 from song import DownloadState, Song
-from commands import Command, CreatePlaylistFromUrlCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand
+from commands import Command, CreatePlaylistFromUrlCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, DeleteCommand
 from song_filename_generator import get_filename, get_youtube_filename, get_youtube_playlist_id_from_url
 from song_queue import SongQueue
 from speaker import speaker
@@ -40,7 +41,7 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 			sq.value.pause()
 
 	elif isinstance(cmd, QueueCommand):
-		song = background_download_song_if_necessary(cmd.url)
+		song = background_download_song_if_necessary(cmd.url, cmd.filename)
 
 		with song_queue.acquire() as sq:
 			if cmd.is_priority:
@@ -65,6 +66,11 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 				sq.value.change_playlist(playlist.name, False)
 
 		background_download_playlist(cmd.url, on_complete)
+
+	elif isinstance(cmd, DeleteCommand):
+		with song_queue.acquire() as sq:
+			sq.value.default_all_playlist.remove_song(cmd.path)
+			shutil.rmtree(pathlib.Path(cmd.path).parent.absolute())
 
 	else:
 		exhausted: Never = cmd
