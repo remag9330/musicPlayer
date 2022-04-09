@@ -64,16 +64,29 @@ def get_playlist_videos(playlist_id: str) -> Optional[list[Video]]:
             logging.info("No API key supplied, supplying one can improve RPi performance")
             return None
 
-        r = requests.get(
-            f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId={playlist_id}&key={api_key}"
-        )
+        results: list[Video] = []
+        nextPageToken = None
 
-        if not r.ok:
-            logging.error(f"Error retrieving data from YT API: status_code: {r.status_code}, text: {r.text}")
-            return None
+        while True:
+            url = f"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId={playlist_id}&key={api_key}"
+            if nextPageToken:
+                url += f"&pageToken={nextPageToken}"
 
-        # playlist_videos = res.items.map(i => { id: i.snippet.resourceId.videoId, name: i.snippet.title })
-        return [Video(i["snippet"]["resourceId"]["videoId"], i["snippet"]["title"]) for i in r.json()["items"]]
+            r = requests.get(url)
+
+            if not r.ok:
+                logging.error(f"Error retrieving data from YT API: status_code: {r.status_code}, text: {r.text}")
+                return None
+
+            json = r.json()
+            nextPageToken = json["nextPageToken"] if "nextPageToken" in json else None
+            results += [Video(i["snippet"]["resourceId"]["videoId"], i["snippet"]["title"]) for i in json["items"]]
+
+            if not nextPageToken:
+                break
+        
+        import pdb; pdb.set_trace()
+        return results
     except:
         logging.exception("Error getting playlist items from YT API")
 
