@@ -115,6 +115,7 @@ def download_song(url: str, s: Song) -> None:
 				logging.info("Semaphore acquired, starting download")
 				yt_dl.download_audio(url, s.set_download_percentage)
 				s.downloading = DownloadState.Downloaded
+				break
 		except:
 			logging.exception("Failed to download, setting .downloading to Error")
 			if attempts >= 10:

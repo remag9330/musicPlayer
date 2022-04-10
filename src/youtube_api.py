@@ -85,7 +85,6 @@ def get_playlist_videos(playlist_id: str) -> Optional[list[Video]]:
             if not nextPageToken:
                 break
         
-        import pdb; pdb.set_trace()
         return results
     except:
         logging.exception("Error getting playlist items from YT API")
