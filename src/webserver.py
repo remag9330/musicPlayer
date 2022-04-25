@@ -1,4 +1,5 @@
 import logging
+import math
 import queue
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from speaker import speaker
 
 from bottle import get, post, run, template, static_file, request, response, redirect
 
-from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR
+from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
 
 def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
 	try:
@@ -138,10 +139,33 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 
 		return search_terms or ""
 
+	def _page() -> int:
+		page = 1
+
+		try:
+			page_str = request.query.page or request.forms.page
+			if not isinstance(page_str, str):
+				raise Exception("Unknown type for page")
+			
+			page = int(page_str or "1")
+		except:
+			logging.exception("Could not get page number")
+
+		return page
+
+
 	@get("/songs")
 	def songs():
 		search_terms = _search_terms()
 		logging.info(f"search_terms = {search_terms}")
+
+		page = _page()
+		logging.info(f"page = {page}")
+		if page < 1:
+			logging.info("Page is below 1, clamping to 1")
+			page = 1
+
+		songs_per_page = SONGS_PER_PAGE
 
 		with song_queue.acquire() as sq:
 			songs = sq.value.default_all_playlist.all_available_songs()
@@ -149,7 +173,16 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 				for term in search_terms.split():
 					songs = [s for s in songs if term.lower() in s.path.lower()]
 
-			return template("songs", songs=songs, search=search_terms)
+			total_pages = math.ceil(len(songs) / songs_per_page)
+			if page > total_pages:
+				page = total_pages
+				logging.info(f"Page is above max ({total_pages}), clamping to max")
+			
+			start = (page - 1) * songs_per_page
+			end = start + songs_per_page
+			songs = songs[start:end]
+
+			return template("songs", songs=songs, search=search_terms, current_page=page, total_pages=total_pages)
 
 	@post("/songs/play")
 	def songs_play():

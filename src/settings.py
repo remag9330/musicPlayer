@@ -13,3 +13,5 @@ FFMPEG_LOCATION = "C:/music_player/ffmpeg/bin/"
 PREFERRED_AUDIO_OUTPUT_ORDER = ["vlc", "pygame"]
 
 MAX_PARALLEL_DOWNLOADS = 1
+
+SONGS_PER_PAGE = 10

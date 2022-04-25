@@ -1,3 +1,7 @@
+<%
+page_link_url = lambda search, page: f"?search={search}&page={page}" if search else f"?page={page}"
+%>
+
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -40,5 +44,17 @@
                 </li>
             % end
         </ul>
+
+        <div class="centre">
+            % if current_page > 1:
+                <a href="{{page_link_url(search, 1)}}">First</a>
+                <a href="{{page_link_url(search, current_page - 1)}}">Prev</a>
+            % end
+            <span>Page {{current_page}} / {{total_pages}}</span>
+            % if current_page < total_pages:
+                <a href="{{page_link_url(search, current_page + 1)}}">Next</a>
+                <a href="{{page_link_url(search, total_pages)}}">Last</a>
+            %end
+        </div>
     </body>
 </html>
