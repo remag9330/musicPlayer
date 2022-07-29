@@ -13,7 +13,11 @@ from webserver import start_webserver
 
 
 def main():
-	logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+	logging.basicConfig(
+		stream=sys.stdout,
+		level=logging.DEBUG,
+		format="%(asctime)s:%(levelname)s:%(name)s:%(message)s"
+	)
 	logging.info("Music player is starting up")
 
 	os.chdir(os.path.dirname(os.path.abspath(__file__)))
