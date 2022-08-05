@@ -25,6 +25,8 @@ class VlcSpeaker(AbstractSpeaker):
             self.__current_playing_filename = filename
 
     def play(self) -> None:
+        self.__pause_state = None
+
         with self.__track.acquire() as track:
             if track.value:
                 track.value.play()
@@ -47,8 +49,8 @@ class VlcSpeaker(AbstractSpeaker):
 
     def unpause(self) -> None:
         if self.__pause_state:
+            # We'll set __pause_state back to None during self.play()
             [start_time, filename] = self.__pause_state
-            self.__pause_state = None
             self.load(filename)
             self.play()
             self.set_pos(start_time)
