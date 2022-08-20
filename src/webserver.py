@@ -2,8 +2,11 @@ import logging
 import math
 import queue
 from pathlib import Path
+from typing import Union
 
 from mutex import Mutex
+from song import Song
+from song_filename_generator import get_youtube_filename_from_cache
 from song_queue import SongQueue
 from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand, DeleteCommand
 from speaker import speaker
@@ -11,6 +14,7 @@ from speaker import speaker
 from bottle import get, post, run, template, static_file, request, response, redirect
 
 from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
+from youtube_api import SearchResult, search_youtube
 
 def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
 	try:
@@ -153,6 +157,16 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 
 		return page
 
+	def _force_search_youtube() -> bool:
+		force_search_youtube = ""
+		try:
+			force_search_youtube = request.query.forceSearchYoutube or request.forms.forceSearchYoutube
+			if not isinstance(force_search_youtube, str):
+				raise Exception("Unknown type for force_search_youtube")
+		except:
+			logging.exception("Could not get search terms")
+
+		return (force_search_youtube or "false") != "false"
 
 	@get("/songs")
 	def songs():
@@ -165,24 +179,55 @@ def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]
 			logging.info("Page is below 1, clamping to 1")
 			page = 1
 
+		force_search_youtube = _force_search_youtube()
+		logging.info(f"force_search_youtube = {force_search_youtube}")
+
 		songs_per_page = SONGS_PER_PAGE
+
+		songs: list[Union[Song, SearchResult]] = []
+		youtube_searched = False
 
 		with song_queue.acquire() as sq:
 			songs = sq.value.default_all_playlist.all_available_songs()
-			if search_terms:
-				for term in search_terms.split():
-					songs = [s for s in songs if term.lower() in s.path.lower()]
 
-			total_pages = math.ceil(len(songs) / songs_per_page)
-			if page > total_pages:
-				page = total_pages
-				logging.info(f"Page is above max ({total_pages}), clamping to max")
-			
-			start = (page - 1) * songs_per_page
-			end = start + songs_per_page
-			songs = songs[start:end]
+		if search_terms:
+			for term in search_terms.split():
+				songs = [s for s in songs if term.lower() in s.path.lower()]
 
-			return template("songs", songs=songs, search=search_terms, current_page=page, total_pages=total_pages)
+			# If we didn't find any songs (or it's been requested), also perform a search via the YouTube API
+			if len(songs) == 0 or force_search_youtube:
+				results = search_youtube(search_terms, "video") or []
+				youtube_searched = True
+
+				with song_queue.acquire() as sq:
+					song_from_path = sq.value.default_all_playlist.song_from_path
+
+					for result in results:
+						# We check if the song's already been downloaded by checking if the file's already on disk
+						path = get_youtube_filename_from_cache(result.video_id)
+						existing_song = song_from_path(path) if path is not None else None
+
+						# Make sure to not double up on any results that may already be retrieved earlier
+						if existing_song is not None:
+							if existing_song not in songs:
+								songs.append(existing_song)
+						else:
+							songs.append(result)
+
+				# Sort the songs so already-downloaded songs appear first
+				songs.sort(key=lambda s: not isinstance(s, Song))
+
+
+		total_pages = math.ceil(len(songs) / songs_per_page)
+		if page > total_pages:
+			page = total_pages
+			logging.info(f"Page is above max ({total_pages}), clamping to max")
+		
+		start = (page - 1) * songs_per_page
+		end = start + songs_per_page
+		songs = songs[start:end]
+
+		return template("songs", songs=songs, search=search_terms, youtube_searched=youtube_searched, current_page=page, total_pages=total_pages)
 
 	@post("/songs/play")
 	def songs_play():

@@ -24,26 +24,49 @@ page_link_url = lambda search, page: f"?search={search}&page={page}" if search e
 
         <ul id="upcoming">
             % for s in songs:
-                <li class="flex_and_centre">
-                    <img src="data:image/jpg;base64, {{s.thumbnail_base64()}}" alt="{{s.name}}" />
-                    <span class="flex_fill">{{s.name}}</span>
-                    <span>
-                        <form method="POST" action="/songs/play">
-                            <input type="hidden" name="id" value="{{s.path}}" />
-                            <input type="hidden" name="search" value="{{search}}" />
-                            <button type="submit">▶</button>
-                        </form>
-                    </span>
-                    <span>
-                        <!-- <form method="POST" action="/songs/delete">
-                            <input type="hidden" name="id" value="{{s.path}}" />
-                            <input type="hidden" name="search" value="{{search}}" />
-                            <button type="submit">❌</button>
-                        </form> -->
-                    </span>
-                </li>
+                % # Can be either a Song or a SearchResult, so act accordingly:
+                % if hasattr(s, "downloading"):
+                    <li class="flex_and_centre">
+                        <img src="data:image/jpg;base64, {{s.thumbnail_base64()}}" alt="{{s.name}}" />
+                        <span class="flex_fill">{{s.name}}</span>
+                        <span>
+                            <form method="POST" action="/songs/play">
+                                <input type="hidden" name="id" value="{{s.path}}" />
+                                <input type="hidden" name="search" value="{{search}}" />
+                                <button type="submit">▶</button>
+                            </form>
+                        </span>
+                        <span>
+                            <!-- <form method="POST" action="/songs/delete">
+                                <input type="hidden" name="id" value="{{s.path}}" />
+                                <input type="hidden" name="search" value="{{search}}" />
+                                <button type="submit">❌</button>
+                            </form> -->
+                        </span>
+                    </li>
+                % else:
+                    <li class="flex_and_centre">
+                        <img src="{{s.thumbnail}}" alt="{{s.title}}" />
+                        <span class="flex_fill">{{s.title}}</span>
+                        <span>
+                            <form method="POST" action="/queue">
+                                <input type="hidden" name="url" value="https://www.youtube.com/watch?v={{s.video_id}}" />
+                                <input type="hidden" name="search" value="{{search}}" />
+                                <button type="submit">⬇▶</button>
+                            </form>
+                        </span>
+                    </li>
+                % end
             % end
         </ul>
+
+        <div class="centre top_spacing bottom_spacing">
+            % if youtube_searched:
+                <span>Includes search results from YouTube</span>
+            % else:
+                <a href="{{page_link_url(search, 1) + '&forceSearchYoutube=true'}}">Include search results from YouTube</a>
+            % end
+        </div>
 
         <div class="centre">
             % if current_page > 1:

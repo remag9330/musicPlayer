@@ -17,17 +17,10 @@
         <h1>Music Player</h1>
         <div id="queue">
             <h2>Queue</h2>
-            <form method="POST" action="/queue" class="bottom_spacing">
-                <div id="queue_inputs">
-                    <label id="queue_url_label" for="queue_url_input">URL</label>
-                    <input id="queue_url_input" name="url" type="text" placeholder="URL to queue" />
-                    <label id="queue_priority_label" for="queue_priority_checkbox">Play Next</label>
-                    <input id="queue_priority_checkbox" name="priority" type="checkbox" />
-                </div>
-                <button id="queue_submit" type="submit">Queue</button>
+            <form id="queue_inputs" method="GET" action="/songs">
+                <input id="queue_input" name="search" type="text" placeholder="Search for a song" />
+                <button type="submit">🔍</button>
             </form>
-
-            <a class="centre" href="/songs">Add existing song to playlist</a>
         </div>
 
         <div id="playing">

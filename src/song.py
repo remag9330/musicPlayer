@@ -1,7 +1,7 @@
 import base64
 from enum import Enum, auto
 import os
-from typing import Optional
+from typing import Any, Optional
 
 from mutagen.mp3 import MP3
 
@@ -56,6 +56,9 @@ class Song:
 
 	def set_download_percentage(self, val: float) -> None:
 		self.download_percentage = val
+
+	def __eq__(self, other: Any) -> bool:
+		return isinstance(other, Song) and self.path == other.path
 
 class NullSong(Song):
 	def __init__(self):

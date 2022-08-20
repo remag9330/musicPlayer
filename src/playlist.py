@@ -24,7 +24,7 @@ class Playlist:
         return os.path.splitext(os.path.split(path)[1])[0]
 
     @staticmethod
-    def _song_from_path(path: str) -> Song:
+    def song_from_path(path: str) -> Song:
         name = Playlist._song_name_from_path(path)
         song = Song(name, path, DownloadState.Downloaded)
         return song
@@ -42,7 +42,7 @@ class AllAvailableCachedSongsPlaylist(Playlist):
 
     def get_next(self) -> Song:
         path = choice(tuple(self.all_songs))
-        return self._song_from_path(path)
+        return self.song_from_path(path)
 
     def add_song(self, song: Song) -> None:
         self.all_songs.add(song.path)
@@ -54,7 +54,7 @@ class AllAvailableCachedSongsPlaylist(Playlist):
             logging.exception(f"could not remove song from all_songs list, this might cause issues further down the line '{path}'")
 
     def all_available_songs(self) -> list[Song]:
-        l = [self._song_from_path(s) for s in self.all_songs]
+        l = [self.song_from_path(s) for s in self.all_songs]
         l.sort(key=lambda s: s.name)
         return l
 
@@ -80,7 +80,7 @@ class FilePlaylist(Playlist):
             self.current_song_idx = (self.current_song_idx + 1) % len(self.all_songs)
 
         song_path = os.path.join(MUSIC_DIR, self.all_songs[self.current_song_idx])
-        return self._song_from_path(song_path)
+        return self.song_from_path(song_path)
 
     def add_song(self, song: Union[Song, str]) -> None:
         full_path = song if isinstance(song, str) else song.path
