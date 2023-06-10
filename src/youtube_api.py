@@ -26,7 +26,7 @@ def get(resource: str, params: dict[str, Optional[str]]) -> Optional[JsonValue]:
 
     if not r.ok:
         raise Exception(f"Error retrieving data from YT API - " +
-            "resource: '{resource}', status_code: '{r.status_code}', text: '{r.text}', params: '{params}'")
+            f"resource: '{resource}', status_code: '{r.status_code}', text: '{r.text}', params: '{params}'")
 
     return r.json()
 
