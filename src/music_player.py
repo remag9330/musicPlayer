@@ -18,7 +18,7 @@ import youtube_dl as yt_dl
 import youtube_api as yt_api
 import settings
 
-def start_music_player(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
+def start_music_player(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
 	while True:
 		cmd = try_get(event_queue)
 
@@ -77,7 +77,7 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 		raise Exception(f"Unknown command {exhausted}")
 
 T = TypeVar("T")
-def try_get(q: queue.Queue[T]) -> Optional[T]:
+def try_get(q: "queue.Queue[T]") -> Optional[T]:
 	try:
 		return q.get(timeout=1)
 	except queue.Empty:

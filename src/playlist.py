@@ -53,7 +53,7 @@ class AllAvailableCachedSongsPlaylist(Playlist):
         except KeyError:
             logging.exception(f"could not remove song from all_songs list, this might cause issues further down the line '{path}'")
 
-    def all_available_songs(self) -> list[Song]:
+    def all_available_songs(self) -> "list[Song]":
         l = [self.song_from_path(s) for s in self.all_songs]
         l.sort(key=lambda s: s.name)
         return l
@@ -91,7 +91,7 @@ class FilePlaylist(Playlist):
             f.writelines("\n".join(self.all_songs))
 
     @staticmethod
-    def create_playlist(name: str, filenames: list[str]) -> Playlist:
+    def create_playlist(name: str, filenames: "list[str]") -> Playlist:
         with open(os.path.join(PLAYLISTS_DIR, name), "w"):
             pass # Just create
 
@@ -103,7 +103,7 @@ class FilePlaylist(Playlist):
         return pl
 
     @staticmethod
-    def all_available_playlist_names() -> list[str]:
+    def all_available_playlist_names() -> "list[str]":
         playlists = [AllAvailableCachedSongsPlaylist.playlist_name]
 
         try:

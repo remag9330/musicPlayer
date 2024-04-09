@@ -16,7 +16,7 @@ from bottle import get, post, run, template, static_file, request, response, red
 from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
 from youtube_api import SearchResult, search_youtube
 
-def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
+def start_webserver(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
 	try:
 		logging.info("Background server thread starting up! Setting up routes")
 		setup_routes(event_queue, song_queue)
@@ -26,7 +26,7 @@ def start_webserver(event_queue: queue.Queue[Command], song_queue: Mutex[SongQue
 	except:
 		logging.exception("Error occurred while running web server")
 
-def setup_routes(event_queue: queue.Queue[Command], song_queue: Mutex[SongQueue]):
+def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
 	@get("/")
 	def index():
 		with song_queue.acquire() as sq:

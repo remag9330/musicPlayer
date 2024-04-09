@@ -6,12 +6,12 @@ import requests
 from utils import get_yt_api_key
 
 JsonValue = Union["JsonObject", "JsonArray", int, str, bool, None]
-JsonArray = list[JsonValue]
-JsonObject = dict[str, JsonValue]
+JsonArray = "list[JsonValue]"
+JsonObject = "dict[str, JsonValue]"
 
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3"
 
-def create_url(resource: str, params: dict[str, Optional[str]]) -> str:
+def create_url(resource: str, params: "dict[str, Optional[str]]") -> str:
     api_key = get_yt_api_key()
     if api_key is None:
         raise Exception("No API key supplied, supplying one can improve RPi performance")
@@ -20,7 +20,7 @@ def create_url(resource: str, params: dict[str, Optional[str]]) -> str:
     query_params = "&".join(f"{k}={v}" for (k, v) in params.items() if v is not None)
     return f"{YOUTUBE_URL}/{resource}?{query_params}"
 
-def get(resource: str, params: dict[str, Optional[str]]) -> Optional[JsonValue]:
+def get(resource: str, params: "dict[str, Optional[str]]") -> Optional[JsonValue]:
     url = create_url(resource, params)
     r = requests.get(url)
 
@@ -30,7 +30,7 @@ def get(resource: str, params: dict[str, Optional[str]]) -> Optional[JsonValue]:
 
     return r.json()
 
-def traverse_json(json: JsonValue, path: list[Union[str, int]]) -> JsonValue:
+def traverse_json(json: JsonValue, path: "list[Union[str, int]]") -> JsonValue:
     originalJson = json
 
     for p in path:
@@ -76,7 +76,7 @@ class Video:
     def __str__(self) -> str:
         return f"{self.name} ({self.id})"
 
-def get_playlist_videos(playlist_id: str) -> Optional[list[Video]]:
+def get_playlist_videos(playlist_id: str) -> Optional["list[Video]"]:
     try:
         results: list[Video] = []
         nextPageToken = None
@@ -123,7 +123,7 @@ class SearchResult:
     def __str__(self) -> str:
         return f"{self.title} ({self.video_id})"
         
-def search_youtube(search_query: str, result_type: Literal["video", "playlist"]) -> Optional[list[SearchResult]]:
+def search_youtube(search_query: str, result_type: Literal["video", "playlist"]) -> Optional["list[SearchResult]"]:
     try:
         results: list[SearchResult] = []
 
