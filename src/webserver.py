@@ -1,19 +1,24 @@
+import base64
+import hashlib
 import logging
 import math
 import queue
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from mutex import Mutex
+import ratings
 from song import Song
 from song_filename_generator import get_youtube_filename_from_cache
 from song_queue import SongQueue
 from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand, DeleteCommand
 from speaker import speaker
 
-from bottle import get, post, run, template, static_file, request, response, redirect
+from bottle import get, hook, post, run, template, static_file, request, response, redirect
 
-from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
+from settings import USERS_DIR, WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
+from users import authenticate_user
+from web_sessions import Sessions
 from youtube_api import SearchResult, search_youtube
 
 def start_webserver(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
@@ -27,16 +32,33 @@ def start_webserver(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQ
 		logging.exception("Error occurred while running web server")
 
 def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
+	sessions = Sessions()
+
+	def _get_username() -> Optional[str]:
+		return sessions.user_from_session(request.get_cookie("authSession", ""))
+	
+	@hook("before_request")
+	def update_last_accessed() -> None:
+		username = _get_username()
+		if username:
+			sessions.update_last_active(username)
+
 	@get("/")
 	def index():
+		username = _get_username()
+
 		with song_queue.acquire() as sq:
 			current_volume = speaker().get_volume()
 			vol_min_max_step = speaker().volume_min_max_step()
+
+			rating = ratings.get_song_rating(sq.value.currently_playing.song, username)
 			
 			return template("index",
 				song_queue=sq.value,
 				current_volume=current_volume,
-				vol_min_max_step=vol_min_max_step
+				vol_min_max_step=vol_min_max_step,
+				username=username,
+				rating=rating
 			)
 
 	@get("/static/<filename:path>")
@@ -277,5 +299,66 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		search = _search_terms()
 		return redirect(f"/songs?search={search}")
 
+	@get("/login")
+	def login_page():
+		try:
+			error = request.params["error"] or ""
+		except KeyError:
+			error = ""
+
+		error_message = None
+		if error == "invalidUsernameOrPassword":
+			error_message = "The username or password was incorrect"
+
+		return template("login", error_message=error_message)
+
+	@post("/login")
+	def login():
+		try:
+			username = str(request.forms.username)
+			password = str(request.forms.password)
+		except:
+			logging.exception("Bad input for login")
+			response.status = 400
+			error_message = f"Login parameters not specified or invalid"
+			return template("error", error_message=error_message)
+		
+		logging.info(f"attempting login for {username}")
+		
+		error = authenticate_user(username, password)
+		if error:
+			return redirect(f"/login?error={error}")
+			
+		session = sessions.create_session_for_user(username)
+		response.set_cookie("authSession", session, max_age=90*24*60*60, httponly=True, samesite="strict")
+
+		return redirect("/")
 	
+
+	@post("/rateSong")
+	def rate_song():
+		username = _get_username()
+		if username is None:
+			logging.info("Unauthenticated user in rateSong, exiting")
+			response.status = 403
+			return redirect("/")
+
+		try:
+			song_name = request.forms.song_name
+			rating = int(request.forms.rating)
+		except:
+			logging.exception("Bad input for login")
+			response.status = 400
+			error_message = f"Login parameters not specified or invalid"
+			return template("error", error_message=error_message)
+		
+		with song_queue.acquire() as sq:
+			if sq.value.currently_playing.song.name != song_name:
+				logging.warn("song name not current song, skipping user rating")
+
+			ratings.rate_song(sq.value.currently_playing.song, username, rating)
+
+		logging.info(f"{username} {song_name} {rating}")
+		return redirect("/")
+
 # pyright: reportGeneralTypeIssues=false, reportMissingTypeStubs=false, reportUnusedFunction=false, reportUnknownVariableType=false, reportUnknownParameterType=false, reportUnknownMemberType=false

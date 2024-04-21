@@ -14,7 +14,16 @@
     </head>
 
     <body>
+        <div id="login">
+            %if username is None:
+                🔑 <a href="/login">Login</a>
+            %else:
+                🔑 {{username}}
+            %end
+        </div>
+
         <h1>Music Player</h1>
+
         <div id="queue">
             <h2>Queue</h2>
             <form id="queue_inputs" method="GET" action="/songs">
@@ -58,6 +67,19 @@
                     <button type="submit">✔</button>
                 </form>
             </div>
+
+            %if username is not None:
+                <div id="user_rating">
+                    <form method="POST" action="/rateSong">
+                        <input type="hidden" name="song_name" value="{{song_queue.currently_playing.song.name}}" />
+                        <button type="submit" name="rating" value="1">{{"⭐" if rating and rating >= 1 else "☆"}}</button>
+                        <button type="submit" name="rating" value="2">{{"⭐" if rating and rating >= 2 else "☆"}}</button>
+                        <button type="submit" name="rating" value="3">{{"⭐" if rating and rating >= 3 else "☆"}}</button>
+                        <button type="submit" name="rating" value="4">{{"⭐" if rating and rating >= 4 else "☆"}}</button>
+                        <button type="submit" name="rating" value="5">{{"⭐" if rating and rating >= 5 else "☆"}}</button>
+                    </form>
+                </div>
+            %end
         </div>
 
         <div id="upcoming">

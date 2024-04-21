@@ -1,156 +1,197 @@
-*, *::before, *::after {
-    box-sizing: border-box;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
-    max-width: 600px;
-    width: 100%;
-    margin: auto;
-    margin-bottom: 1em;
-    padding: 0 0.5em 0 0.5em;
-    font-family: sans-serif;
+  position: relative;
+  max-width: 600px;
+  width: 100%;
+  margin: auto;
+  margin-bottom: 1em;
+  padding: 0 0.5em 0 0.5em;
+  font-family: sans-serif;
 }
 
 button {
-    height: 2.5em;
-    min-width: 2.5em;
-}
-
-.hidden {
-    display: none;
+  height: 2.5em;
+  min-width: 2.5em;
 }
 
 h1 {
-    font-family: serif;
-    text-align: center;
-    margin-bottom: 0;
+  font-family: serif;
+  text-align: center;
+  margin: 0;
+  padding-top: 1em;
 }
 
 h2 {
-    font-family: serif;
-    display: flex;
-    flex-direction: row;
-    font-weight: normal;
+  font-family: serif;
+  display: flex;
+  flex-direction: row;
+  font-weight: normal;
 }
-h2:before, h2:after{
-    content: "";
-    flex: 1 1;
-    border-bottom: 1px solid;
-    margin: auto;
+h2:before,
+h2:after {
+  content: "";
+  flex: 1 1;
+  border-bottom: 1px solid;
+  margin: auto;
 }
 h2:before {
-    margin-right: 10px
+  margin-right: 10px;
 }
 h2:after {
-    margin-left: 10px
+  margin-left: 10px;
+}
+
+.hidden {
+  display: none;
 }
 
 .flex_and_centre {
-    width: 100%;
-    display: flex;
-    gap: 1em;
-    align-items: center;
+  width: 100%;
+  display: flex;
+  gap: 1em;
+  align-items: center;
 }
 
 .flex_fill {
-    flex-grow: 1;
+  flex-grow: 1;
 }
 
 .centre {
-    display: inline-block;
-    width: 100%;
-    text-align: center;
+  display: inline-block;
+  width: 100%;
+  text-align: center;
 }
 
 .top_spacing {
-    margin-top: 1em;
+  margin-top: 1em;
 }
 
 .bottom_spacing {
-    margin-bottom: 1em;
+  margin-bottom: 1em;
 }
 
+.simple_form {
+  margin: 1em 0;
+}
+
+.simple_form > label {
+  display: block;
+  padding-bottom: 1em;
+}
+
+.simple_form > label > input {
+  display: block;
+  width: 100%;
+  height: 2.5em;
+}
+
+.simple_form > button[type="submit"] {
+  display: block;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+#login {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+}
 
 #queue {
-    padding-top: 1em;
-    padding-bottom: 1em;
+  padding-top: 1em;
+  padding-bottom: 1em;
 }
 
 #queue_inputs {
-    display: flex;
-    gap: 0.5em;
-    align-items: center;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
 }
 
 #queue_input {
-    flex-grow: 1;
-    height: 2.5em;
+  flex-grow: 1;
+  height: 2.5em;
 }
 
 #playing {
-    margin-bottom: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 #playing > *:not(:last-child) {
-    padding-bottom: 0.5em;
+  padding-bottom: 0.5em;
 }
 
 #playing img {
-    display: block;
-    margin: auto;
-    max-width: 100%;
+  display: block;
+  margin: auto;
+  max-width: 100%;
 }
 
 .controls {
-    text-align: center;
+  text-align: center;
 }
 
 .controls > form {
-    display: inline;
+  display: inline;
 }
 
 .controls > form:not(:last-child) {
-    margin-right: 0.5em;
+  margin-right: 0.5em;
 }
 
 .controls button {
-    min-width: 50px;
+  min-width: 50px;
 }
 
 .controls input[type="range"] {
-    vertical-align: middle;
+  vertical-align: middle;
 }
 
+#user_rating button {
+  background: none;
+  border: none;
+}
 
 #upcoming ol {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 #upcoming li {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 
 #upcoming li:not(:last-child) {
-    margin-bottom: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 #upcoming li img {
-    max-width: 150px;
-    margin-right: 1em;
+  max-width: 150px;
+  margin-right: 1em;
 }
 
 #upcoming > div {
-    text-align: center;
+  text-align: center;
 }
 
-
 #playlist {
-    text-align: center;
+  text-align: center;
 }
 
 #playlist form {
-    margin-bottom: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+#error {
+  background-color: rgb(175, 0, 0);
+  color: white;
+  padding: 4px;
+  border-radius: 4px;
 }
