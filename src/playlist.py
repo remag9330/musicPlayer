@@ -3,10 +3,11 @@ import logging
 import os
 from random import choice
 import random
-from typing import Union
+from typing import Optional, Union, Callable
 
 from settings import MUSIC_DIR, PLAYLISTS_DIR
 from song import DownloadState, NullSong, Song
+from ratings import get_song_rating
 
 class Playlist:
     def __init__(self, name: str) -> None:
@@ -34,6 +35,7 @@ class AllAvailableCachedSongsPlaylist(Playlist):
 
     def __init__(self) -> None:
         super().__init__(self.playlist_name)
+        self.whos_listening: Callable[[], list[str]] = lambda: []
         self.all_songs = set(glob(os.path.join(MUSIC_DIR, "*", "*.mp3")))
 
         if len(self.all_songs) == 0:
@@ -41,8 +43,30 @@ class AllAvailableCachedSongsPlaylist(Playlist):
             raise Exception("No songs found!")
 
     def get_next(self) -> Song:
-        path = choice(tuple(self.all_songs))
-        return self.song_from_path(path)
+        whos_listening = self.whos_listening()
+
+        remaining_attempts = 100
+        while remaining_attempts > 0:
+            remaining_attempts -= 1
+            
+            path = choice(tuple(self.all_songs))
+            song_choice = self.song_from_path(path)
+
+            ratings = [get_song_rating(song_choice, user) for user in whos_listening]
+            ratings = [i for i in ratings if i is not None]
+
+            if any(i < 3 for i in ratings):
+                logging.info(f"Skipped {song_choice.name} due to low rating")
+                continue
+
+            break
+
+        if remaining_attempts <= 70:
+            logging.warning(f"Skipped a lot of songs ({100 - remaining_attempts}) due to low user ratings. Probably not an issue, but just a heads up")
+        elif remaining_attempts <= 0:
+            logging.error(f"Skipped through all 100 attempts to find a song due to low user ratings. This is most likely a problem (possibly?)")
+
+        return song_choice
 
     def add_song(self, song: Song) -> None:
         self.all_songs.add(song.path)

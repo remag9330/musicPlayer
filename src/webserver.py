@@ -1,5 +1,3 @@
-import base64
-import hashlib
 import logging
 import math
 import queue
@@ -16,7 +14,7 @@ from speaker import speaker
 
 from bottle import get, hook, post, run, template, static_file, request, response, redirect
 
-from settings import USERS_DIR, WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
+from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
 from users import authenticate_user
 from web_sessions import Sessions
 from youtube_api import SearchResult, search_youtube
@@ -33,6 +31,8 @@ def start_webserver(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQ
 
 def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
 	sessions = Sessions()
+	with song_queue.acquire() as sq:
+		sq.value.default_all_playlist.whos_listening = lambda: sessions.recently_active_users()
 
 	def _get_username() -> Optional[str]:
 		return sessions.user_from_session(request.get_cookie("authSession", ""))

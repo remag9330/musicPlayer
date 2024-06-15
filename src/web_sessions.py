@@ -36,6 +36,17 @@ class Sessions:
         if session:
             session.update_last_active()
     
+    def recently_active_users(self) -> "list[str]":
+        result = []
+        now = time.time()
+        one_hour_in_seconds = 60 * 60
+
+        for user in self.__username_to_session:
+            session = self.__username_to_session[user]
+            if now - session.last_active < one_hour_in_seconds:
+                result.append(user)
+        return result
+    
 class Session:
     def __init__(self, username: str, session_id: str) -> None:
         self.username = username
