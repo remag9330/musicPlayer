@@ -36,6 +36,11 @@ class PygameSpeaker(AbstractSpeaker):
         with music.acquire() as m:
             return m.value.get_pos()
 
+    def set_pos(self, ms: int):
+        with music.acquire() as m:
+            m.value.rewind()
+            m.value.set_pos(ms / 1000)
+
     def get_volume(self) -> float:
         with music.acquire() as m:
             return m.value.get_volume()

@@ -39,6 +39,9 @@ class PlayingSong:
 	def is_finished(self) -> bool:
 		return self.playing_state == PlayingState.Playing and not speaker().get_busy()
 	
+	def skip_to_overridden_start(self):
+		speaker().set_pos(self.song.start_time)
+	
 	def current_elapsed_time_secs(self) -> Optional[float]:
 		pos = speaker().get_pos()
 		if pos == -1:

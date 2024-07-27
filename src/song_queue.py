@@ -42,6 +42,7 @@ class SongQueue:
 
 		self.currently_playing = PlayingSong(song)
 		self.currently_playing.play()
+		self.currently_playing.skip_to_overridden_start()
 
 	def _copy_currently_playing_to_recently_played(self):
 		self.recently_played.append(self.currently_playing.song)

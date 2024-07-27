@@ -20,6 +20,9 @@ class AbstractSpeaker:
     def get_pos(self) -> int:
         raise NotImplementedError()
 
+    def set_pos(self, ms: int):
+        raise NotImplementedError()
+
     def get_volume(self) -> float:
         raise NotImplementedError()
 

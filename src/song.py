@@ -1,6 +1,8 @@
 import base64
 from enum import Enum, auto
+import json
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 from mutagen.mp3 import MP3
@@ -21,6 +23,7 @@ class Song:
 		self.download_percentage = 0.0 if downloading == DownloadState.Downloading else 1.0
 
 		self._cached_length_secs: Optional[float] = None
+		self._cached_start_time_secs: Optional[float] = None
 
 	@property
 	def length_secs(self) -> float:
@@ -29,6 +32,19 @@ class Song:
 			self._cached_length_secs = audio.info.length
 
 		return self._cached_length_secs
+	
+	@property
+	def start_time(self) -> float:
+		if self._cached_start_time_secs is None:
+			self._cached_start_time_secs = 0
+
+			settings_file = Path(self.path).parent / "settings.json"
+			if settings_file.exists():
+				with open(settings_file) as f:
+					settings = json.load(f)
+				self._cached_start_time_secs = int(settings.get("start_time_ms")) or 0
+
+		return self._cached_start_time_secs
 
 	@property
 	def thumbnail_path(self) -> str:
