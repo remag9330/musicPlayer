@@ -273,7 +273,8 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			return template("error", error_message=error_message)
 
 		search = _search_terms()
-		return redirect(f"/songs?search={search}")
+		page = _page()
+		return redirect(f"/songs?search={search}&page={page}")
 
 	@post("/songs/delete")
 	def songs_delete():

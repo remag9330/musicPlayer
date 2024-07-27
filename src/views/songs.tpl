@@ -33,6 +33,7 @@ page_link_url = lambda search, page: f"?search={search}&page={page}" if search e
                             <form method="POST" action="/songs/play">
                                 <input type="hidden" name="id" value="{{s.path}}" />
                                 <input type="hidden" name="search" value="{{search}}" />
+                                <input type="hidden" name="page" value="{{current_page}}" />
                                 <button type="submit">▶</button>
                             </form>
                         </span>
