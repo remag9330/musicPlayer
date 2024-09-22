@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" >
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Home Music Player Login</title>
+        <title>Login - Home Music Player</title>
         <link href="static/styles.css" rel="stylesheet"></link>
     </head>
 

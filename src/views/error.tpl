@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" >
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Home Music Player Error</title>
+        <title>Error - Home Music Player</title>
     </head>
 
     <body>

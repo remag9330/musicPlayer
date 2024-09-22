@@ -17,9 +17,8 @@ page_link_url = lambda search, page: f"?search={search}&page={page}" if search e
         <a href="/" class="centre top_spacing bottom_spacing">Back to Queue</a>
 
         <form id="search" method="GET" action="/songs" class="flex_and_centre">
-            <label>Search</label>
-            <input type="text" name="search" value="{{search}}" class="flex_fill" />
-            <button type="submit">Search</button>
+            <input type="text" name="search" value="{{search}}" placeholder="Search for a song" class="flex_fill" />
+            <button type="submit">🔍</button>
         </form>
 
         <ul id="upcoming">
