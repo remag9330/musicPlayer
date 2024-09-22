@@ -40,7 +40,8 @@ class PlayingSong:
 		return self.playing_state == PlayingState.Playing and not speaker().get_busy()
 	
 	def skip_to_overridden_start(self):
-		speaker().set_pos(self.song.start_time)
+		if self.song.start_time > 0:
+			speaker().set_pos(self.song.start_time)
 	
 	def current_elapsed_time_secs(self) -> Optional[float]:
 		pos = speaker().get_pos()

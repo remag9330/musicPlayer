@@ -32,7 +32,10 @@ class VlcSpeaker(AbstractSpeaker):
                 track.value.play()
                 # MediaPlayer.is_playing() will return False _immediately_ after .play(), so we need
                 # to wait a split second so we don't end up changing songs after returning from here.
-                time.sleep(0.5)
+                attempts = 0
+                while attempts < 5 and not track.value.is_playing():
+                    attempts += 1
+                    time.sleep(0.1)
 
             self._update_track_volume_locked(track.value)
 
