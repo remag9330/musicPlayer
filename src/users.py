@@ -1,25 +1,18 @@
 import base64
 import hashlib
-import json
 import logging
-from pathlib import Path
-from typing import Optional
+from typing import Union
 
-from settings import USERS_DIR
+from database import database
 
-def authenticate_user(username: str, password: str) -> Optional[str]:
-    user_file = Path(USERS_DIR) / Path(username)
-
-    if not user_file.exists():
+def authenticate_user(username: str, password: str) -> Union[str, int]:
+    user = database.get_user(username)
+    if user is None:
         logging.info("Invalid username")
         return "invalidUsernameOrPassword"
     
-    with open(user_file, "r") as f:
-        data = json.load(f)
-    
-    salt_b64 = str(data["password"]["salt"])
-    expected_password_hash_b64 = str(data["password"]["hash"])
-    iterations = int(data["password"]["iterations"])
+    [expected_password_hash_b64, salt_b64, iterations_str] = user.password_hash.split(":")
+    iterations = int(iterations_str)
 
     expected_password_hash = base64.b64decode(expected_password_hash_b64)
     salt = base64.b64decode(salt_b64)
@@ -30,7 +23,7 @@ def authenticate_user(username: str, password: str) -> Optional[str]:
         logging.info("Invalid password")
         return "invalidUsernameOrPassword"
     
-    return None
+    return user.id
     
 def password_hash(password: str, salt: bytes, iterations: int) -> bytes:
     n = iterations # iterations

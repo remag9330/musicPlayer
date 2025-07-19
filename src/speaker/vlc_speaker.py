@@ -81,10 +81,10 @@ class VlcSpeaker(AbstractSpeaker):
         else:
             return 0
 
-    def set_pos(self, pos: int) -> None:
+    def set_pos(self, ms: int) -> None:
         with self.__track.acquire() as track:
             if track.value:
-                track.value.set_time(pos)
+                track.value.set_time(ms)
 
     def get_volume(self) -> float:
         return self.__volume   

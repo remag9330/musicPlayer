@@ -1,9 +1,8 @@
 import os
 
-DATA_DIRECTORY = "C:/music_player/data"
+DATA_DIRECTORY = os.path.join("C:", "music_player", "data")
 MUSIC_DIR = os.path.join(DATA_DIRECTORY, "music")
-PLAYLISTS_DIR = os.path.join(DATA_DIRECTORY, "playlists")
-USERS_DIR = os.path.join(DATA_DIRECTORY, "users")
+DATABASE_FILE = os.path.join(DATA_DIRECTORY, "database.db")
 
 WEBSERVER_IP = "0.0.0.0"
 WEBSERVER_PORT = 80

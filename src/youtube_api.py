@@ -1,13 +1,11 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import requests
 
 from utils import get_yt_api_key
 
-JsonValue = Union["JsonObject", "JsonArray", int, str, bool, None]
-JsonArray = "list[JsonValue]"
-JsonObject = "dict[str, JsonValue]"
+JsonValue = Union[Dict[str, "JsonValue"], List["JsonValue"], int, str, bool, None]
 
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3"
 

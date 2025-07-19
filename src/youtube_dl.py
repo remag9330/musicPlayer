@@ -7,7 +7,7 @@ from settings import MUSIC_DIR, YOUTUBE_DL_COMMAND, FFMPEG_LOCATION
 
 YOUTUBE_DL = YOUTUBE_DL_COMMAND
 
-OUT_PATH = os.path.join(MUSIC_DIR, "%(id)s", "%(title)s.%(ext)s")
+OUT_PATH = os.path.join(MUSIC_DIR, "%(id)s.%(ext)s")
 
 def download_audio(url: str, progress_callback: Optional[Callable[[float], None]]=None) -> None:
 	logging.info(f"Starting download of '{url}'")

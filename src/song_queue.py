@@ -3,6 +3,7 @@ import logging
 from playing_song import NullPlayingSong, PlayingSong
 from playlist import AllAvailableCachedSongsPlaylist, FilePlaylist, Playlist
 from song import DownloadState, Song
+from database import database
 
 MAX_RECENTLY_PLAYED_SONGS = 100
 
@@ -18,14 +19,9 @@ class SongQueue:
 
 	def queue_song(self, song: Song) -> None:
 		self.up_next.append(song)
-		self._add_to_playlists(song)
 
 	def queue_song_priority(self, song: Song) -> None:
 		self.up_next.insert(0, song)
-		self._add_to_playlists(song)
-
-	def _add_to_playlists(self, song: Song) -> None:
-		self.default_all_playlist.add_song(song)
 
 	def play(self) -> None:
 		self.currently_playing.play()
@@ -86,7 +82,11 @@ class SongQueue:
 				self.playlist = self.default_all_playlist
 			else:
 				logging.info(f"Changing playlist to {name}")
-				self.playlist = FilePlaylist(name)
+				pl = database.get_playlist(name)
+				if pl is None:
+					logging.warning("Unknown playlist selected")
+					return
+				self.playlist = FilePlaylist(pl.id, pl.name)
 
 		logging.info(f"Setting playlists shuffle state to {shuffle}")
 		self.playlist.shuffle = shuffle

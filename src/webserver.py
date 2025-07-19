@@ -1,20 +1,17 @@
 import logging
 import math
 import queue
-from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
+from database import database
 from mutex import Mutex
-import ratings
-from song import Song
-from song_filename_generator import get_youtube_filename_from_cache
+from song import DownloadState, Song
 from song_queue import SongQueue
 from commands import Command, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, CreatePlaylistFromUrlCommand, DeleteCommand
 from speaker import speaker
 
 from bottle import get, hook, post, run, template, static_file, request, response, redirect
-
-from settings import WEBSERVER_IP, WEBSERVER_PORT, MUSIC_DIR, SONGS_PER_PAGE
+from settings import WEBSERVER_IP, WEBSERVER_PORT, SONGS_PER_PAGE
 from users import authenticate_user
 from web_sessions import Sessions
 from youtube_api import SearchResult, search_youtube
@@ -34,30 +31,34 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 	with song_queue.acquire() as sq:
 		sq.value.default_all_playlist.whos_listening = lambda: sessions.recently_active_users()
 
-	def _get_username() -> Optional[str]:
-		return sessions.user_from_session(request.get_cookie("authSession", ""))
+	def _get_user():
+		cookie = request.get_cookie("authSession", "")
+		if cookie is None: return None
+		user_id = sessions.user_id_from_session(cookie)
+		if user_id is None: return None
+		return database.get_user(user_id)
 	
 	@hook("before_request")
 	def update_last_accessed() -> None:
-		username = _get_username()
-		if username:
-			sessions.update_last_active(username)
+		user = _get_user()
+		if user:
+			sessions.update_last_active(user.id)
 
 	@get("/")
 	def index():
-		username = _get_username()
+		user = _get_user()
 
 		with song_queue.acquire() as sq:
 			current_volume = speaker().get_volume()
 			vol_min_max_step = speaker().volume_min_max_step()
 
-			rating = ratings.get_song_rating(sq.value.currently_playing.song, username)
+			rating = database.get_rating_for_song(sq.value.currently_playing.song.id, user.id) if user else 0
 			
 			return template("index",
 				song_queue=sq.value,
 				current_volume=current_volume,
 				vol_min_max_step=vol_min_max_step,
-				username=username,
+				username=user.name if user else None,
 				rating=rating
 			)
 
@@ -96,14 +97,27 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 
 	@post("/queue")
 	def queue():
-		url: str = request.params["url"]
+		id = ""
 
 		try:
-			is_priority: bool = request.params["priority"] != ""
-		except KeyError:
-			is_priority: bool = False
+			id = request.params["id"]
+			if not isinstance(id, str):
+				raise Exception(f"Unknown type for id")
+			
+			id = int(id)
 
-		event_queue.put_nowait(QueueCommand(url, is_priority))
+			try:
+				is_priority: bool = request.params["priority"] != ""
+			except KeyError:
+				is_priority: bool = False
+
+			event_queue.put_nowait(QueueCommand(id, is_priority))
+		except:
+			logging.exception("Bad input for queue endpoint")
+			response.status = 400
+			error_message = f"ID parameter not specified or invalid. Ensure it's a number. id='{id}'"
+			return template("error", error_message=error_message)
+
 		return redirect("/")
 
 	@post("/skip")
@@ -204,49 +218,48 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		force_search_youtube = _force_search_youtube()
 		logging.info(f"force_search_youtube = {force_search_youtube}")
 
-		songs_per_page = SONGS_PER_PAGE
+		if search_terms:
+			db_songs = database.search_songs(search_terms)
+		else:
+			db_songs = database.get_songs()
 
-		songs: list[Union[Song, SearchResult]] = []
+		songs: list[Union[Song, SearchResult]] = list(
+			map(
+				lambda s: Song.from_db_song(s, DownloadState.Downloaded),
+				db_songs
+			)
+		)
+		song_count = len(songs)
+
+		start = (page - 1) * SONGS_PER_PAGE
+		end = start + SONGS_PER_PAGE
+		
 		youtube_searched = False
 
-		with song_queue.acquire() as sq:
-			songs = sq.value.default_all_playlist.all_available_songs()
+		# If we didn't find any songs (or it's been requested), also perform a search via the YouTube API
+		if search_terms and (len(songs) == 0 or force_search_youtube):
+			results = search_youtube(search_terms, "video") or []
+			youtube_searched = True
 
-		if search_terms:
-			for term in search_terms.split():
-				songs = [s for s in songs if term.lower() in s.path.lower()]
+			for result in results:
+				existing_song_db = database.get_song_by_youtube_id(result.video_id)
 
-			# If we didn't find any songs (or it's been requested), also perform a search via the YouTube API
-			if len(songs) == 0 or force_search_youtube:
-				results = search_youtube(search_terms, "video") or []
-				youtube_searched = True
+				# Make sure to not double up on any results that may already be retrieved earlier
+				if existing_song_db is not None:
+					existing_song = next((x for x in songs if isinstance(x, Song) and x.id == existing_song_db.id), None)
+					if existing_song is None:
+						songs.append(Song.from_db_song(existing_song_db, DownloadState.Downloaded))
+				else:
+					songs.append(result)
 
-				with song_queue.acquire() as sq:
-					song_from_path = sq.value.default_all_playlist.song_from_path
+			# Sort the songs so already-downloaded songs appear first
+			songs.sort(key=lambda s: not isinstance(s, Song))
 
-					for result in results:
-						# We check if the song's already been downloaded by checking if the file's already on disk
-						path = get_youtube_filename_from_cache(result.video_id)
-						existing_song = song_from_path(path) if path is not None else None
-
-						# Make sure to not double up on any results that may already be retrieved earlier
-						if existing_song is not None:
-							if existing_song not in songs:
-								songs.append(existing_song)
-						else:
-							songs.append(result)
-
-				# Sort the songs so already-downloaded songs appear first
-				songs.sort(key=lambda s: not isinstance(s, Song))
-
-
-		total_pages = math.ceil(len(songs) / songs_per_page)
+		total_pages = math.ceil(song_count / SONGS_PER_PAGE)
 		if page > total_pages:
 			page = total_pages
 			logging.info(f"Page is above max ({total_pages}), clamping to max")
 		
-		start = (page - 1) * songs_per_page
-		end = start + songs_per_page
 		songs = songs[start:end]
 
 		return template("songs", songs=songs, search=search_terms, youtube_searched=youtube_searched, current_page=page, total_pages=total_pages)
@@ -259,13 +272,13 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			song_id = request.forms.id
 			if not isinstance(song_id, str):
 				raise Exception("Unknown type for song id")
-
-			music_dir = Path(MUSIC_DIR)
-			suggested_song_path = Path(song_id)
-			if not music_dir in suggested_song_path.parents:
+			
+			song_id = int(song_id)
+			
+			if database.get_song(song_id) is None:
 				raise Exception("Invalid song id")
 
-			event_queue.put_nowait(QueueCommand("", False, song_id))
+			event_queue.put_nowait(QueueCommand(song_id, False))
 		except:
 			logging.exception("Bad input for play song")
 			response.status = 400
@@ -284,10 +297,10 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			song_id = request.forms.id
 			if not isinstance(song_id, str):
 				raise Exception("Unknown type for song id")
-
-			music_dir = Path(MUSIC_DIR)
-			suggested_song_path = Path(song_id)
-			if not music_dir in suggested_song_path.parents:
+			
+			song_id = int(song_id)
+			
+			if database.get_song(song_id) is None:
 				raise Exception("Invalid song id")
 
 			event_queue.put_nowait(DeleteCommand(song_id))
@@ -326,11 +339,11 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		
 		logging.info(f"attempting login for {username}")
 		
-		error = authenticate_user(username, password)
-		if error:
-			return redirect(f"/login?error={error}")
+		result = authenticate_user(username, password)
+		if isinstance(result, str):
+			return redirect(f"/login?error={result}")
 			
-		session = sessions.create_session_for_user(username)
+		session = sessions.create_session_for_user(result)
 		response.set_cookie("authSession", session, max_age=90*24*60*60, httponly=True, samesite="strict")
 
 		return redirect("/")
@@ -338,14 +351,22 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 
 	@post("/rateSong")
 	def rate_song():
-		username = _get_username()
-		if username is None:
+		user = _get_user()
+		if user is None:
 			logging.info("Unauthenticated user in rateSong, exiting")
 			response.status = 403
 			return redirect("/")
 
 		try:
-			song_name = request.forms.song_name
+			song_id = request.forms.song_id
+			if not isinstance(song_id, str):
+				raise Exception("Unknown type for song id")
+			
+			song_id = int(song_id)
+			
+			if database.get_song(song_id) is None:
+				raise Exception("Invalid song id")
+			
 			rating = int(request.forms.rating)
 		except:
 			logging.exception("Bad input for login")
@@ -354,12 +375,12 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			return template("error", error_message=error_message)
 		
 		with song_queue.acquire() as sq:
-			if sq.value.currently_playing.song.name != song_name:
-				logging.warn("song name not current song, skipping user rating")
+			if sq.value.currently_playing.song.id != song_id:
+				logging.warning("song name not current song, skipping user rating")
 
-			ratings.rate_song(sq.value.currently_playing.song, username, rating)
+			database.add_rating(sq.value.currently_playing.song.id, user.id, rating)
 
-		logging.info(f"{username} {song_name} {rating}")
+		logging.info(f"{user.id} {song_id} {rating}")
 		return redirect("/")
 
 # pyright: reportGeneralTypeIssues=false, reportMissingTypeStubs=false, reportUnusedFunction=false, reportUnknownVariableType=false, reportUnknownParameterType=false, reportUnknownMemberType=false

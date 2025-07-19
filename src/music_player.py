@@ -3,15 +3,16 @@ import shutil
 import threading
 import logging
 import queue
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Optional, TypeVar, Union
 from typing_extensions import Never
 
 from mutex import Mutex
 from playlist import FilePlaylist, Playlist
 
+from database import database
 from song import DownloadState, Song
-from commands import Command, CreatePlaylistFromUrlCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, DeleteCommand
-from song_filename_generator import get_filename, get_youtube_filename, get_youtube_playlist_id_from_url
+from commands import Command, CreatePlaylistFromUrlCommand, DownloadCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, DeleteCommand
+from song_filename_generator import get_name, get_video_id, get_youtube_playlist_id_from_url
 from song_queue import SongQueue
 from speaker import speaker
 import youtube_dl as yt_dl
@@ -41,13 +42,25 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 			sq.value.pause()
 
 	elif isinstance(cmd, QueueCommand):
-		song = background_download_song_if_necessary(cmd.url, cmd.filename)
+		song = database.get_song(cmd.song_id)
+
+		if song is None:
+			logging.warning(f"Could not find song {cmd.song_id} during queue command")
+			return
+		
+		song = Song.from_db_song(song, DownloadState.Downloaded)
 
 		with song_queue.acquire() as sq:
 			if cmd.is_priority:
 				sq.value.queue_song_priority(song)
 			else:
 				sq.value.queue_song(song)
+
+	elif isinstance(cmd, DownloadCommand):
+		song = background_download_song_if_necessary(cmd.url)
+
+		with song_queue.acquire() as sq:
+			sq.value.queue_song(song)
 
 	elif isinstance(cmd, SkipCommand):
 		with song_queue.acquire() as sq:
@@ -68,9 +81,15 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 		background_download_playlist(cmd.url, on_complete)
 
 	elif isinstance(cmd, DeleteCommand):
-		with song_queue.acquire() as sq:
-			sq.value.default_all_playlist.remove_song(cmd.path)
-			shutil.rmtree(pathlib.Path(cmd.path).parent.absolute())
+		song = database.get_song(cmd.song_id)
+		if song is None:
+			logging.warning(f"Song {cmd.song_id} could not be found")
+			return
+		
+		database.remove_song(song.id)
+		shutil.rmtree(pathlib.Path(song.path()).parent.absolute())
+		shutil.rmtree(pathlib.Path(song.thumbnail_jpg()).parent.absolute())
+		shutil.rmtree(pathlib.Path(song.thumbnail_webp()).parent.absolute())
 
 	else:
 		exhausted: Never = cmd
@@ -83,30 +102,45 @@ def try_get(q: "queue.Queue[T]") -> Optional[T]:
 	except queue.Empty:
 		return None
 
-def background_download_song_if_necessary(url: str, song_filename: Optional[str] = None) -> Song:
+def background_download_song_if_necessary(url: str, song_name: Optional[str] = None, on_complete: Optional[Callable[[Song], None]] = None) -> Song:
 	logging.info(f"Starting download process for {url}")
-	filename = song_filename or get_filename(url)
-	pathname = pathlib.Path(filename)
+	vid_id = get_video_id(url)
+	if vid_id is None:
+		raise ValueError("Supplied URL was not a YT URL")
+	
+	existing_song = database.get_song_by_youtube_id(vid_id)
 
-	if pathname.is_file():
+	if existing_song is not None:
 		logging.info("Song exists, no need to download")
-		return Song(pathname.stem, filename, DownloadState.Downloaded)
+		return Song.from_db_song(existing_song, DownloadState.Downloaded)
 	else:
 		logging.info("Song does not exist, starting download")
-		s = Song(pathname.stem, filename, DownloadState.Downloading)
-		background_download_song(url, s)
+		song_name = song_name or get_name(url)
+
+		def on_complete_override(s: Song):
+			id = database.add_song(song_name, vid_id, 0)
+			new_song = database.get_song(id)
+			assert new_song is not None
+
+			s.id = id
+			s.path = new_song.path()
+
+			if on_complete: on_complete(s)
+
+		s = Song(-1, song_name, "", DownloadState.Downloading)
+		background_download_song(url, s, on_complete_override)
 		return s
 
-def background_download_song(url: str, s: Song) -> None:
-	t = threading.Thread(target=download_song, args=(url, s), daemon=True)
+def background_download_song(url: str, s: Song, on_complete: Optional[Callable[[Song], None]] = None) -> None:
+	t = threading.Thread(target=download_song, args=(url, s, on_complete), daemon=True)
 	t.start()
 
 __downloader_semaphore = threading.BoundedSemaphore(settings.MAX_PARALLEL_DOWNLOADS)
 
-def download_song(url: str, s: Song) -> None:
+def download_song(url: str, s: Song, on_complete: Optional[Callable[[Song], None]] = None) -> None:
 	attempts = 0
 
-	while attempts < 10:
+	while attempts < 2:
 		attempts += 1
 
 		try:
@@ -115,10 +149,11 @@ def download_song(url: str, s: Song) -> None:
 				logging.info("Semaphore acquired, starting download")
 				yt_dl.download_audio(url, s.set_download_percentage)
 				s.downloading = DownloadState.Downloaded
+				if on_complete: on_complete(s)
 				break
 		except:
 			logging.exception("Failed to download, setting .downloading to Error")
-			if attempts >= 10:
+			if attempts >= 2:
 				# Only set on final failure - otherwise it will get auto-removed from the queue
 				s.downloading = DownloadState.Error
 
@@ -144,14 +179,25 @@ def background_download_playlist(url: str, on_complete: Callable[[Playlist], Non
 	if playlist_videos is None:
 		logging.warning("No playlist videos found - exiting")
 		return
+	
+	completed_songs: "list[Union[Song, str]]" = [v.id for v in playlist_videos]
+	downloads_remaining = len(playlist_videos)
 
-	filenames: list[str] = []
+	def on_song_complete(s: Song):
+		new_song = database.get_song(s.id)
+		assert new_song is not None, "Song should already exist"
+		idx = completed_songs.index(new_song.youtube_id)
+		completed_songs[idx] = s
+		nonlocal downloads_remaining
+		downloads_remaining -= 1
+
+		if downloads_remaining == 0:
+			assert all(isinstance(x, Song) for x in completed_songs), "Not all songs in completed list were songs?"
+			pl = FilePlaylist.create_playlist(playlist_name, completed_songs) # type: ignore
+			on_complete(pl)
+
 	for vid in playlist_videos:
 		vid_url = f"https://www.youtube.com/watch?v={vid.id}"
-		filename = get_youtube_filename(vid.id, vid.name)
-		filenames.append(filename)
-		background_download_song_if_necessary(vid_url, filename)
-
-	FilePlaylist.create_playlist(playlist_name, filenames)
+		background_download_song_if_necessary(vid_url, vid.name, on_song_complete)
 
 # pyright: reportUnnecessaryIsInstance=false

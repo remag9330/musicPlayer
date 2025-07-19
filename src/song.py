@@ -1,12 +1,11 @@
 import base64
 from enum import Enum, auto
-import json
 import os
-from pathlib import Path
 from typing import Any, Optional
 
 from mutagen.mp3 import MP3
 
+from database import database, Song as DbSong
 from utils import hours_mins_secs_to_human_readable, secs_to_hours_mins_secs
 
 class DownloadState(Enum):
@@ -16,14 +15,15 @@ class DownloadState(Enum):
 
 
 class Song:
-	def __init__(self, name: str, path: str, downloading: DownloadState):
+	def __init__(self, id: int, name: str, path: str, downloading: DownloadState):
+		self.id = id
 		self.name = name
 		self.path = path
 		self.downloading: DownloadState = downloading
 		self.download_percentage = 0.0 if downloading == DownloadState.Downloading else 1.0
 
 		self._cached_length_secs: Optional[float] = None
-		self._cached_start_time_secs: Optional[float] = None
+		self._cached_start_time_ms: Optional[int] = None
 
 	@property
 	def length_secs(self) -> float:
@@ -34,17 +34,10 @@ class Song:
 		return self._cached_length_secs
 	
 	@property
-	def start_time(self) -> float:
-		if self._cached_start_time_secs is None:
-			self._cached_start_time_secs = 0
-
-			settings_file = Path(self.path).parent / "settings.json"
-			if settings_file.exists():
-				with open(settings_file) as f:
-					settings = json.load(f)
-				self._cached_start_time_secs = int(settings.get("start_time_ms")) or 0
-
-		return self._cached_start_time_secs
+	def start_time(self) -> int:
+		song = database.get_song(self.id)
+		assert song is not None, "I should definitely exist in the DB"
+		return song.start_time_ms or 0
 
 	@property
 	def thumbnail_path(self) -> str:
@@ -73,12 +66,16 @@ class Song:
 	def set_download_percentage(self, val: float) -> None:
 		self.download_percentage = val
 
+	@staticmethod
+	def from_db_song(s: DbSong, downloadState: DownloadState) -> "Song":
+		return Song(s.id, s.name, s.path(), downloadState)
+
 	def __eq__(self, other: Any) -> bool:
 		return isinstance(other, Song) and self.path == other.path
 
 class NullSong(Song):
 	def __init__(self):
-		super().__init__("<NULL>", "<NULL>", DownloadState.Downloaded)
+		super().__init__(-1, "<NULL>", "<NULL>", DownloadState.Downloaded)
 		# Don't let the length_secs property try to read this non-existant file
 		self._cached_length_secs = 0
 
