@@ -2,6 +2,8 @@ import logging
 import sqlite3
 from typing import Optional, List, Tuple, Union, NamedTuple
 import os
+import uuid
+from datetime import datetime, timezone
 
 import settings
 
@@ -51,6 +53,20 @@ class Playlist(NamedTuple):
     @staticmethod
     def all_from_db(cursor: sqlite3.Cursor) -> List["Playlist"]:
         return [Playlist(*obj) for obj in cursor.fetchall()]
+
+class Session(NamedTuple):
+    id: str
+    user_id: int
+    expires_at: str
+
+    @staticmethod
+    def from_db(cursor: sqlite3.Cursor) -> Optional["Session"]:
+        obj = cursor.fetchone()
+        return Session(*obj) if obj else None
+    
+    @staticmethod
+    def all_from_db(cursor: sqlite3.Cursor) -> List["Session"]:
+        return [Session(*obj) for obj in cursor.fetchall()]
 
 class Database:
     _expected_metadata_version = 1
@@ -123,6 +139,15 @@ class Database:
                     idx INTEGER NOT NULL,
                     FOREIGN KEY (song_id) REFERENCES Songs(song_id),
                     FOREIGN KEY (playlist_id) REFERENCES Playlists(playlist_id)
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS UserSessions (
+                    session_id TEXT PRIMARY KEY NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES Users(user_id)
                 )
             ''')
             conn.commit()
@@ -342,6 +367,44 @@ class Database:
             cursor.execute("DELETE FROM Songs WHERE song_id = ?", (song_id,))
             cursor.execute("DELETE FROM Ratings WHERE song_id = ?", (song_id,))
             cursor.execute("DELETE FROM PlaylistSongs WHERE song_id = ?", (song_id,))
+            conn.commit()
+        
+    def create_session(self, user_id: int, expires_at: str) -> str:
+        session_id = str(uuid.uuid4())
+        
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO UserSessions (session_id, expires_at, user_id) VALUES (?, ?, ?)", (session_id, expires_at, user_id))
+            conn.commit()
+        
+        return session_id
+
+    def get_session(self, session_id: str) -> Optional[Session]:
+        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM UserSessions WHERE session_id = ? AND expires_at > ?", (session_id, now))
+            return Session.from_db(cursor)
+    
+    def get_active_sessions(self) -> List[Session]:
+        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM UserSessions WHERE expires_at > ?", (now,))
+            return Session.all_from_db(cursor)
+        
+    def remove_session(self, session_id: str):
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM UserSessions WHERE session_id = ?", (session_id,))
+            conn.commit()
+        
+    def remove_users_session(self, user_id: int):
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM UserSessions WHERE user_id = ?", (user_id,))
             conn.commit()
 
     def _last_row_id(self, cursor) -> int:

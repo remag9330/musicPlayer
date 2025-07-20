@@ -31,15 +31,18 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 	with song_queue.acquire() as sq:
 		sq.value.default_all_playlist.whos_listening = lambda: sessions.recently_active_users()
 
+	def _get_session_id():
+		return request.get_cookie("authSession", "")
+
 	def _get_user():
-		cookie = request.get_cookie("authSession", "")
-		if cookie is None: return None
-		user_id = sessions.user_id_from_session(cookie)
+		session_id = _get_session_id()
+		if session_id is None: return None
+		user_id = sessions.user_id_from_session(session_id)
 		if user_id is None: return None
 		return database.get_user(user_id)
 	
 	def _get_str_param(name: str) -> Optional[str]:
-		param = request.query.get(name) or request.forms.get(name)
+		param = request.query.get(name) or request.forms.get(name) # type: ignore Bad typings on the .get(...)
 		if not (param is None or isinstance(param, str)):
 			raise Exception(f"Unknown type for {name}")
 		return param
@@ -71,13 +74,14 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 	
 	@hook("before_request")
 	def update_last_accessed() -> None:
-		user = _get_user()
-		if user:
-			sessions.update_last_active(user.id)
+		session_id = _get_session_id()
+		if session_id is not None:
+			sessions.update_last_active(session_id)
 
 	@get("/")
 	def index():
 		user = _get_user()
+		logging.info(user.name if user else "<>")
 
 		with song_queue.acquire() as sq:
 			current_volume = speaker().get_volume()
