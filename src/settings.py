@@ -1,6 +1,6 @@
 import os
 
-DATA_DIRECTORY = os.path.join("C:", "music_player", "data")
+DATA_DIRECTORY = os.path.join("C:\\", "music_player", "data")
 MUSIC_DIR = os.path.join(DATA_DIRECTORY, "music")
 DATABASE_FILE = os.path.join(DATA_DIRECTORY, "database.db")
 

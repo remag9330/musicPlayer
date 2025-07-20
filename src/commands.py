@@ -20,8 +20,8 @@ class VolumeCommand:
 		self.volume = volume
 
 class ChangePlaylistCommand:
-	def __init__(self, name: str, shuffle: bool) -> None:
-		self.name = name
+	def __init__(self, id: int, shuffle: bool) -> None:
+		self.id = id
 		self.shuffle = shuffle
 
 class CreatePlaylistFromUrlCommand:

@@ -59,6 +59,7 @@ class SongQueue:
 		if song is None:
 			logging.info("No songs queued/ready, getting next song from playlist")
 			song = self._random_available_song()
+			logging.info(f"Selected song is {song.name}")
 
 		return song
 
@@ -75,14 +76,14 @@ class SongQueue:
 			logging.debug(f"Removing {to_remove.name} (failed to download)")
 			self.up_next.remove(to_remove)
 
-	def change_playlist(self, name: str, shuffle: bool) -> None:
-		if name != self.playlist.name:
-			if name == self.default_all_playlist.name:
+	def change_playlist(self, id: int, shuffle: bool) -> None:
+		if id != self.playlist.id:
+			if id == self.default_all_playlist.id:
 				logging.info(f"Changing playlist back to default all song playlist")
 				self.playlist = self.default_all_playlist
 			else:
-				logging.info(f"Changing playlist to {name}")
-				pl = database.get_playlist(name)
+				logging.info(f"Changing playlist to {id}")
+				pl = database.get_playlist(id)
 				if pl is None:
 					logging.warning("Unknown playlist selected")
 					return

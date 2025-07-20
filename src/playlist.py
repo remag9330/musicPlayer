@@ -4,7 +4,8 @@ from song import DownloadState, NullSong, Song
 from database import database
 
 class Playlist:
-    def __init__(self, name: str) -> None:
+    def __init__(self, id: int, name: str) -> None:
+        self.id = id
         self.name = name
         self.shuffle = False
 
@@ -13,25 +14,28 @@ class Playlist:
 
 class AllAvailableCachedSongsPlaylist(Playlist):
     playlist_name = "All Downloaded Songs"
+    playlist_id = -1
 
     def __init__(self) -> None:
-        super().__init__(self.playlist_name)
+        super().__init__(self.playlist_id, self.playlist_name)
         self.whos_listening: Callable[[], list[int]] = lambda: []
 
     def get_next(self) -> Song:
         whos_listening = self.whos_listening()
-        song = database.get_random_song_rated_high_by_users(whos_listening)
+        song = database.get_random_song_rated_not_low_by_users(whos_listening)
         return Song.from_db_song(song, DownloadState.Downloaded) if song else NullSong()
 
 class FilePlaylist(Playlist):
     def __init__(self, id: int, name: str) -> None:
-        super().__init__(name)
-        self.id = id
+        super().__init__(id, name)
         self.current_song_idx: int = -1 # Start just before first, `get_next()` will "prime" to the first item
 
     def get_next(self) -> Song:
-        [song, looped] = database.get_next_playlist_song(self.id, self.current_song_idx)
-        self.current_song_idx = 0 if looped else self.current_song_idx + 1
+        if self.shuffle:
+            song = database.get_random_playlist_song(self.id)
+        else:
+            [song, looped] = database.get_next_playlist_song(self.id, self.current_song_idx)
+            self.current_song_idx = 0 if looped else self.current_song_idx + 1
         return Song.from_db_song(song, DownloadState.Downloaded) if song else NullSong()
 
     def add_song(self, song: Song) -> None:
@@ -46,7 +50,7 @@ class FilePlaylist(Playlist):
         return FilePlaylist(id, name)
 
     @staticmethod
-    def all_available_playlist_names() -> "list[str]":
-        playlists = [AllAvailableCachedSongsPlaylist.playlist_name]
-        playlists += map(lambda x: x.name, database.get_all_playlists())
+    def all_available_playlists() -> "list[Playlist]":
+        playlists: list[Playlist] = [AllAvailableCachedSongsPlaylist()]
+        playlists += [FilePlaylist(p.id, p.name) for p in database.get_all_playlists()]
         return playlists

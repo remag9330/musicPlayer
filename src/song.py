@@ -35,8 +35,10 @@ class Song:
 	
 	@property
 	def start_time(self) -> int:
+		if self.id == -1:
+			return 0 # Special case for NullSong and downloading song
 		song = database.get_song(self.id)
-		assert song is not None, "I should definitely exist in the DB"
+		assert song is not None, f"I ({self.id}) should definitely exist in the DB"
 		return song.start_time_ms or 0
 
 	@property

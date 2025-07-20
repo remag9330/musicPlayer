@@ -71,7 +71,7 @@
             %if username is not None:
                 <div id="user_rating">
                     <form method="POST" action="/rateSong">
-                        <input type="hidden" name="song_name" value="{{song_queue.currently_playing.song.name}}" />
+                        <input type="hidden" name="song_id" value="{{song_queue.currently_playing.song.id}}" />
                         <button type="submit" name="rating" value="1">{{"⭐" if rating and rating >= 1 else "☆"}}</button>
                         <button type="submit" name="rating" value="2">{{"⭐" if rating and rating >= 2 else "☆"}}</button>
                         <button type="submit" name="rating" value="3">{{"⭐" if rating and rating >= 3 else "☆"}}</button>
@@ -108,10 +108,10 @@
             
             <form method="POST" action="/playlist">
                 <label for="playlist_selector">Change playlist:</label>
-                <select id="playlist_selector" name="playlist">
-                    %for playlist in FilePlaylist.all_available_playlist_names():
-                        %selected = "selected" if playlist == song_queue.playlist.name else ""
-                        <option value="{{playlist}}" {{selected}}>{{playlist}}</option>
+                <select id="playlist_selector" name="playlist_id">
+                    %for playlist in FilePlaylist.all_available_playlists():
+                        %selected = "selected" if playlist.id == song_queue.playlist.id else ""
+                        <option value="{{playlist.id}}" {{selected}}>{{playlist.name}}</option>
                     %end
                 </select>
                 

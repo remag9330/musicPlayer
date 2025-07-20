@@ -1,7 +1,7 @@
 import logging
 import math
 import queue
-from typing import Union
+from typing import NoReturn, Optional, Union
 
 from database import database
 from mutex import Mutex
@@ -38,6 +38,37 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		if user_id is None: return None
 		return database.get_user(user_id)
 	
+	def _get_str_param(name: str) -> Optional[str]:
+		param = request.query.get(name) or request.forms.get(name)
+		if not (param is None or isinstance(param, str)):
+			raise Exception(f"Unknown type for {name}")
+		return param
+	
+	def _get_int_param(name: str) -> Optional[int]:
+		param = _get_str_param(name)
+		try:
+			return int(param) if param else None
+		except:
+			logging.exception(f"Could not parse param '{name}' with value '{param}'")
+			raise
+	
+	def _get_float_param(name: str) -> Optional[float]:
+		param = _get_str_param(name)
+		try:
+			return float(param) if param else None
+		except:
+			logging.exception(f"Could not parse param '{name}' with value '{param}'")
+			raise
+	
+	def _get_bool_param(name: str) -> bool:
+		try:
+			return (_get_str_param(name) or "") != ""
+		except KeyError:
+			return False
+	
+	def _throw_bad_param(name: str) -> NoReturn:
+		raise ValueError(f"Invalid param {name}")
+	
 	@hook("before_request")
 	def update_last_accessed() -> None:
 		user = _get_user()
@@ -52,7 +83,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			current_volume = speaker().get_volume()
 			vol_min_max_step = speaker().volume_min_max_step()
 
-			rating = database.get_rating_for_song(sq.value.currently_playing.song.id, user.id) if user else 0
+			rating = database.get_rating_for_song(user.id, sq.value.currently_playing.song.id) if user else 0
 			
 			return template("index",
 				song_queue=sq.value,
@@ -81,11 +112,8 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		vol = ""
 
 		try:
-			vol = request.params["volume"]
-			if not isinstance(vol, str):
-				raise Exception(f"Unknown type for vol")
-
-			vol = float(vol)
+			vol = _get_float_param("volume")
+			if vol is None: _throw_bad_param("volume")
 			event_queue.put_nowait(VolumeCommand(vol))
 		except:
 			logging.exception("Bad input for volume endpoint")
@@ -100,16 +128,8 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		id = ""
 
 		try:
-			id = request.params["id"]
-			if not isinstance(id, str):
-				raise Exception(f"Unknown type for id")
-			
-			id = int(id)
-
-			try:
-				is_priority: bool = request.params["priority"] != ""
-			except KeyError:
-				is_priority: bool = False
+			id = _get_int_param("id") or _throw_bad_param("id")
+			is_priority = _get_bool_param("priority")
 
 			event_queue.put_nowait(QueueCommand(id, is_priority))
 		except:
@@ -127,24 +147,18 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 
 	@post("/playlist")
 	def playlist():
-		playlist_name = ""
+		playlist_id = ""
 		shuffle = False
 
 		try:
-			playlist_name = request.forms.playlist
-			if not isinstance(playlist_name, str):
-				raise Exception("Unknown type for playlist")
+			playlist_id = _get_int_param("playlist_id") or _throw_bad_param("playlist_id")
+			shuffle = _get_bool_param("shuffle")
 
-			try:
-				shuffle: bool = request.params["shuffle"] != ""
-			except KeyError:
-				shuffle: bool = False
-
-			event_queue.put_nowait(ChangePlaylistCommand(playlist_name, shuffle))
+			event_queue.put_nowait(ChangePlaylistCommand(playlist_id, shuffle))
 		except:
 			logging.exception("Bad input for playlist endpoint")
 			response.status = 400
-			error_message = f"Playlist parameters not specified or invalid: playlist='{playlist_name}', shuffle='{shuffle}'"
+			error_message = f"Playlist parameters not specified or invalid: playlist='{playlist_id}', shuffle='{shuffle}'"
 			return template("error", error_message=error_message)
 
 		return redirect("/")
@@ -154,9 +168,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		url = ""
 
 		try:
-			url = request.params["url"]
-			if not isinstance(url, str):
-				raise Exception("Unknown type for url")
+			url = _get_str_param("url") or _throw_bad_param("url")
 
 			event_queue.put_nowait(CreatePlaylistFromUrlCommand(url))
 		except:
@@ -169,40 +181,25 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 
 		
 	def _search_terms() -> str:
-		search_terms = ""
 		try:
-			search_terms = request.query.search or request.forms.search
-			if not isinstance(search_terms, str):
-				raise Exception("Unknown type for search_terms")
+			return _get_str_param("search") or ""
 		except:
 			logging.exception("Could not get search terms")
-
-		return search_terms or ""
+			return ""
 
 	def _page() -> int:
-		page = 1
-
 		try:
-			page_str = request.query.page or request.forms.page
-			if not isinstance(page_str, str):
-				raise Exception("Unknown type for page")
-			
-			page = int(page_str or "1")
+			return _get_int_param("page") or 1
 		except:
 			logging.exception("Could not get page number")
-
-		return page
+			return 1
 
 	def _force_search_youtube() -> bool:
-		force_search_youtube = ""
 		try:
-			force_search_youtube = request.query.forceSearchYoutube or request.forms.forceSearchYoutube
-			if not isinstance(force_search_youtube, str):
-				raise Exception("Unknown type for force_search_youtube")
+			return _get_str_param("forceSearchYoutube") == "true"
 		except:
 			logging.exception("Could not get search terms")
-
-		return (force_search_youtube or "false") != "false"
+			return False
 
 	@get("/songs")
 	def songs():
@@ -223,12 +220,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		else:
 			db_songs = database.get_songs()
 
-		songs: list[Union[Song, SearchResult]] = list(
-			map(
-				lambda s: Song.from_db_song(s, DownloadState.Downloaded),
-				db_songs
-			)
-		)
+		songs: list[Union[Song, SearchResult]] = [Song.from_db_song(s, DownloadState.Downloaded) for s in db_songs]
 		song_count = len(songs)
 
 		start = (page - 1) * SONGS_PER_PAGE
@@ -269,11 +261,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		song_id = ""
 
 		try:
-			song_id = request.forms.id
-			if not isinstance(song_id, str):
-				raise Exception("Unknown type for song id")
-			
-			song_id = int(song_id)
+			song_id = _get_int_param("id") or _throw_bad_param("id")
 			
 			if database.get_song(song_id) is None:
 				raise Exception("Invalid song id")
@@ -294,11 +282,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 		song_id = ""
 
 		try:
-			song_id = request.forms.id
-			if not isinstance(song_id, str):
-				raise Exception("Unknown type for song id")
-			
-			song_id = int(song_id)
+			song_id = _get_int_param("id") or _throw_bad_param("id")
 			
 			if database.get_song(song_id) is None:
 				raise Exception("Invalid song id")
@@ -315,10 +299,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 
 	@get("/login")
 	def login_page():
-		try:
-			error = request.params["error"] or ""
-		except KeyError:
-			error = ""
+		error = _get_str_param("error") or ""
 
 		error_message = None
 		if error == "invalidUsernameOrPassword":
@@ -329,8 +310,8 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 	@post("/login")
 	def login():
 		try:
-			username = str(request.forms.username)
-			password = str(request.forms.password)
+			username = _get_str_param("username") or _throw_bad_param("username")
+			password = _get_str_param("password") or _throw_bad_param("password")
 		except:
 			logging.exception("Bad input for login")
 			response.status = 400
@@ -358,16 +339,11 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			return redirect("/")
 
 		try:
-			song_id = request.forms.song_id
-			if not isinstance(song_id, str):
-				raise Exception("Unknown type for song id")
-			
-			song_id = int(song_id)
+			song_id = _get_int_param("song_id") or _throw_bad_param("song_id")
+			rating = _get_int_param("rating") or _throw_bad_param("rating")
 			
 			if database.get_song(song_id) is None:
 				raise Exception("Invalid song id")
-			
-			rating = int(request.forms.rating)
 		except:
 			logging.exception("Bad input for login")
 			response.status = 400
@@ -378,9 +354,9 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 			if sq.value.currently_playing.song.id != song_id:
 				logging.warning("song name not current song, skipping user rating")
 
-			database.add_rating(sq.value.currently_playing.song.id, user.id, rating)
+		database.add_rating(user.id, song_id, rating)
 
-		logging.info(f"{user.id} {song_id} {rating}")
+		logging.info(f"user '{user.id}' rated song '{song_id}' a {rating}/5")
 		return redirect("/")
 
 # pyright: reportGeneralTypeIssues=false, reportMissingTypeStubs=false, reportUnusedFunction=false, reportUnknownVariableType=false, reportUnknownParameterType=false, reportUnknownMemberType=false

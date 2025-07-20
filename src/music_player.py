@@ -71,12 +71,12 @@ def process_cmd(song_queue: Mutex[SongQueue], cmd: Command) -> None:
 
 	elif isinstance(cmd, ChangePlaylistCommand):
 		with song_queue.acquire() as sq:
-			sq.value.change_playlist(cmd.name, cmd.shuffle)
+			sq.value.change_playlist(cmd.id, cmd.shuffle)
 
 	elif isinstance(cmd, CreatePlaylistFromUrlCommand):
 		def on_complete(playlist: Playlist) -> None:
 			with song_queue.acquire() as sq:
-				sq.value.change_playlist(playlist.name, False)
+				sq.value.change_playlist(playlist.id, False)
 
 		background_download_playlist(cmd.url, on_complete)
 
