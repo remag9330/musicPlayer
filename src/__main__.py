@@ -4,6 +4,7 @@ import sys
 import threading
 import queue
 
+from database import database
 from mutex import Mutex
 
 from song_queue import SongQueue
@@ -21,6 +22,8 @@ def main():
 	logging.info("Music player is starting up")
 
 	os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+	database.run_migrations()
 
 	event_queue: queue.Queue[Command] = queue.Queue(-1)
 	song_queue = Mutex(SongQueue())

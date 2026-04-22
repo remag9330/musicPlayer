@@ -19,7 +19,7 @@ class PlayingSong:
 		self.load()
 
 	def load(self):
-		speaker().load(self.song.path)
+		speaker().load(self.song.path, self.song.integrated_loudness)
 
 	def play(self):
 		if self.playing_state == PlayingState.NotStarted:

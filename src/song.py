@@ -15,10 +15,12 @@ class DownloadState(Enum):
 
 
 class Song:
-	def __init__(self, id: int, name: str, path: str, downloading: DownloadState):
+	def __init__(self, id: int, name: str, path: str, integrated_loudness: float, true_peak: float, downloading: DownloadState):
 		self.id = id
 		self.name = name
 		self.path = path
+		self.integrated_loudness = integrated_loudness
+		self.true_peak = true_peak
 		self.downloading: DownloadState = downloading
 		self.download_percentage = 0.0 if downloading == DownloadState.Downloading else 1.0
 
@@ -70,14 +72,14 @@ class Song:
 
 	@staticmethod
 	def from_db_song(s: DbSong, downloadState: DownloadState) -> "Song":
-		return Song(s.id, s.name, s.path(), downloadState)
+		return Song(s.id, s.name, s.path(), s.integrated_loudness, s.true_peak, downloadState)
 
 	def __eq__(self, other: Any) -> bool:
 		return isinstance(other, Song) and self.path == other.path
 
 class NullSong(Song):
 	def __init__(self):
-		super().__init__(-1, "<NULL>", "<NULL>", DownloadState.Downloaded)
+		super().__init__(-1, "<NULL>", "<NULL>", -1, -1, DownloadState.Downloaded)
 		# Don't let the length_secs property try to read this non-existant file
 		self._cached_length_secs = 0
 

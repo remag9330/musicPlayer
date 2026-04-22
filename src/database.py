@@ -5,6 +5,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+from ffmpeg import get_loudness_info
 import settings
 
 class User(NamedTuple):
@@ -22,6 +23,8 @@ class Song(NamedTuple):
     name: str
     youtube_id: str
     start_time_ms: Optional[int]
+    integrated_loudness: float
+    true_peak: float
 
     def path(self) -> str:
         return os.path.join(settings.MUSIC_DIR, self.youtube_id + ".mp3")
@@ -69,14 +72,24 @@ class Session(NamedTuple):
         return [Session(*obj) for obj in cursor.fetchall()]
 
 class Database:
-    _expected_metadata_version = 1
+    _expected_metadata_version = 3
 
     def __init__(self):
         self.db_name = settings.DATABASE_FILE
+
+    def run_migrations(self):
         metadata_version = self._get_metadata_version()
 
         if metadata_version == 0:
             self._initialize_schema()
+            metadata_version = self._get_metadata_version()
+
+        if metadata_version == 1:
+            self._add_song_loudness_column()
+            metadata_version = self._get_metadata_version()
+
+        if metadata_version == 2:
+            self._add_song_loudness_data()
             metadata_version = self._get_metadata_version()
 
         if metadata_version != self._expected_metadata_version:
@@ -152,6 +165,36 @@ class Database:
             ''')
             conn.commit()
 
+    def _add_song_loudness_column(self):
+        logging.info("Migrating DB to have loudness info columns")
+
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("ALTER TABLE Songs ADD COLUMN integrated_loudness INTEGER NOT NULL DEFAULT 0")
+            cursor.execute("ALTER TABLE Songs ADD COLUMN true_peak INTEGER NOT NULL DEFAULT 0")
+            cursor.execute("UPDATE Metadata SET version = 2")
+
+            conn.commit()
+
+    def _add_song_loudness_data(self):
+        logging.info("Migrating DB to include loudness info data")
+
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.cursor()
+
+            for song in self._get_songs(conn):
+                logging.info(f"Processing song '{song.id}' {song.name}")
+                loudness_info = get_loudness_info(song.path())
+                cursor.execute(
+                    "UPDATE Songs SET integrated_loudness = ?, true_peak = ? WHERE song_id = ?",
+                    (loudness_info.integrated_loudness, loudness_info.true_peak, song.id)
+                )
+
+            cursor.execute("UPDATE Metadata SET version = 3")
+            
+            conn.commit()
+
     def add_user(self, username: str, password_hash: str) -> int:
         with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
@@ -159,13 +202,13 @@ class Database:
             conn.commit()
             return self._last_row_id(cursor)
 
-    def add_song(self, song_name: str, youtube_id: str, start_time_ms: int = 0) -> int:
+    def add_song(self, song_name: str, youtube_id: str, integrated_loudness: float, true_peak: float, start_time_ms: int = 0) -> int:
         with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO Songs (song_name, youtube_id, start_time_ms)
-                VALUES (?, ?, ?)
-            """, (song_name, youtube_id, start_time_ms))
+                INSERT INTO Songs (song_name, youtube_id, start_time_ms, integrated_loudness, true_peak)
+                VALUES (?, ?, ?, ?, ?)
+            """, (song_name, youtube_id, start_time_ms, integrated_loudness, true_peak))
             conn.commit()
             return self._last_row_id(cursor)
 
@@ -234,9 +277,12 @@ class Database:
     
     def get_songs(self) -> "list[Song]":
         with sqlite3.connect(self.db_name) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM Songs")
-            return Song.all_from_db(cursor)
+            return self._get_songs(conn)
+        
+    def _get_songs(self, conn: sqlite3.Connection) -> "list[Song]":
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Songs")
+        return Song.all_from_db(cursor)
         
     def get_song_by_youtube_id(self, yt_id: str) -> Optional[Song]:
         with sqlite3.connect(self.db_name) as conn:

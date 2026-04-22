@@ -2,7 +2,7 @@ from typing import Tuple
 
 
 class AbstractSpeaker:
-    def load(self, filename: str) -> None:
+    def load(self, filename: str, integrated_loudness: float) -> None:
         raise NotImplementedError()
 
     def play(self) -> None:

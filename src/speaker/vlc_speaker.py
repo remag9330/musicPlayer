@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Tuple
 from .abstract_speaker import AbstractSpeaker
 
+from settings import TARGET_INTEGRATED_LOUDNESS
 from mutex import Mutex
 
 from vlc import MediaPlayer
@@ -12,17 +13,19 @@ class VlcSpeaker(AbstractSpeaker):
     def __init__(self) -> None:
         self.__track: Mutex[Optional[MediaPlayer]] = Mutex(None)
         self.__volume: float = 1.0
+        self.__track_integrated_loudness: float = TARGET_INTEGRATED_LOUDNESS
         self.__current_playing_filename: str = ""
 
         self.__pause_state: Optional[Tuple[int, str]] = None
 
-    def load(self, filename: str) -> None:
+    def load(self, filename: str, integrated_loudness: float) -> None:
         with self.__track.acquire() as track:
             if track.value:
                 track.value.release()
 
             track.replace_value(MediaPlayer(filename))
             self.__current_playing_filename = filename
+            self.__track_integrated_loudness = integrated_loudness
 
     def play(self) -> None:
         self.__pause_state = None
@@ -54,7 +57,7 @@ class VlcSpeaker(AbstractSpeaker):
         if self.__pause_state:
             # We'll set __pause_state back to None during self.play()
             [start_time, filename] = self.__pause_state
-            self.load(filename)
+            self.load(filename, self.__track_integrated_loudness)
             self.play()
             self.set_pos(start_time)
         else:
@@ -99,11 +102,30 @@ class VlcSpeaker(AbstractSpeaker):
 
     def _update_track_volume_locked(self, track: Optional[MediaPlayer]) -> None:
         if track and track.is_playing():
-            track.audio_set_volume(int(self.__volume * 100))
+            base_volume = int(self.__volume * 100)
+            # true_volume = base_volume
+            true_volume = normalised_volume(
+                self.__track_integrated_loudness,
+                TARGET_INTEGRATED_LOUDNESS,
+                base_volume)
+            logging.info(f"Setting song volume to {true_volume}")
+            track.audio_set_volume(true_volume)
 
                 
     def volume_min_max_step(self) -> Tuple[float, float, float]:
         return (0.0, 2.0, 0.1)
+
+def normalised_volume(measured_lufs, target_lufs, base_volume):
+    """
+    measured_lufs: float, integrated loudness of file
+    target_lufs: float, desired LUFS (e.g., -14)
+    base_volume: int, user/system setting (0-200 in VLC scale)
+    """
+    diff_db = target_lufs - measured_lufs
+    factor = 10 ** (diff_db / 20)    # dB -> linear
+    normalised = base_volume * factor
+    # clamp to VLC's 0-200
+    return max(0, min(int(round(normalised)), 200))
 
 speaker = VlcSpeaker()
 

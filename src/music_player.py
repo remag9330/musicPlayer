@@ -9,7 +9,7 @@ from typing_extensions import Never
 from mutex import Mutex
 from playlist import FilePlaylist, Playlist
 
-from database import database
+from database import database, Song as DbSong
 from song import DownloadState, Song
 from commands import Command, CreatePlaylistFromUrlCommand, DownloadCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, DeleteCommand
 from song_filename_generator import get_name, get_video_id, get_youtube_playlist_id_from_url
@@ -17,6 +17,7 @@ from song_queue import SongQueue
 from speaker import speaker
 import youtube_dl as yt_dl
 import youtube_api as yt_api
+import ffmpeg
 import settings
 
 def start_music_player(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
@@ -118,16 +119,16 @@ def background_download_song_if_necessary(url: str, song_name: Optional[str] = N
 		song_name = song_name or get_name(url)
 
 		def on_complete_override(s: Song):
-			id = database.add_song(song_name, vid_id, 0)
+			id = database.add_song(song_name, vid_id, s.integrated_loudness, s.true_peak, 0)
 			new_song = database.get_song(id)
 			assert new_song is not None
 
 			s.id = id
-			s.path = new_song.path()
 
 			if on_complete: on_complete(s)
 
-		s = Song(-1, song_name, "", DownloadState.Downloading)
+		dbSong = DbSong(-1, song_name, vid_id, None, 0, 0)
+		s = Song(-1, song_name, dbSong.path(), 0, 0, DownloadState.Downloading)
 		background_download_song(url, s, on_complete_override)
 		return s
 
@@ -148,7 +149,15 @@ def download_song(url: str, s: Song, on_complete: Optional[Callable[[Song], None
 			with __downloader_semaphore:
 				logging.info("Semaphore acquired, starting download")
 				yt_dl.download_audio(url, s.set_download_percentage)
+
+				logging.info("Download complete, determining loudness adjustments")
+				loudness = ffmpeg.get_loudness_info(s.path)
+				logging.info(f"Loudness adjustments measured successfully (I={loudness.integrated_loudness}, tp={loudness.true_peak})")
+
+				s.integrated_loudness = loudness.integrated_loudness
+				s.true_peak = loudness.true_peak
 				s.downloading = DownloadState.Downloaded
+
 				if on_complete: on_complete(s)
 				break
 		except:
