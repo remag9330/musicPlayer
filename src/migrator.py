@@ -35,16 +35,16 @@ elif requested_migrator == "normaliseAudio":
     from database import database
     from ffmpeg import normalise_loudness
 
-    all_songs = database.get_songs()
-    
-    for i, song in enumerate(all_songs):
+    from concurrent.futures import ThreadPoolExecutor
+
+    def normalise_song_audio(song, i):
         logging.info(f"Normalising {i + 1}/{len(all_songs)} {song.youtube_id} ({song.name})...")
         real_path = song.path()
         orig_path = real_path + ".original"
 
         if not (os.path.exists(real_path) or os.path.exists(orig_path)):
             logging.warning(f"Neither {real_path} nor {orig_path} exist - skipping this file")
-            continue
+            return
 
         if not os.path.exists(orig_path):
             logging.info(f"File {orig_path} does not exist, moving existing to {real_path}...")
@@ -60,6 +60,12 @@ elif requested_migrator == "normaliseAudio":
         logging.info(f"Normalising loudness for {orig_path} and saving to {real_path}...")
         normalise_loudness(orig_path, real_path)
         logging.info(f"Finished normalising loudness for {orig_path}")
+
+    all_songs = database.get_songs()
+    
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        for i, song in enumerate(all_songs):
+            executor.submit(normalise_song_audio, song, i)
 
     logging.info("All done!")
 
