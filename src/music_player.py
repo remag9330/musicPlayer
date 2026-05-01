@@ -5,11 +5,12 @@ import logging
 import queue
 from typing import Callable, Optional, TypeVar, Union
 from typing_extensions import Never
+import os
 
 from mutex import Mutex
 from playlist import FilePlaylist, Playlist
 
-from database import database
+from database import database, Song as DbSong
 from song import DownloadState, Song
 from commands import Command, CreatePlaylistFromUrlCommand, DownloadCommand, PlayCommand, PauseCommand, QueueCommand, SkipCommand, VolumeCommand, ChangePlaylistCommand, DeleteCommand
 from song_filename_generator import get_name, get_video_id, get_youtube_playlist_id_from_url
@@ -17,6 +18,7 @@ from song_queue import SongQueue
 from speaker import speaker
 import youtube_dl as yt_dl
 import youtube_api as yt_api
+import ffmpeg
 import settings
 
 def start_music_player(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueue]):
@@ -118,16 +120,14 @@ def background_download_song_if_necessary(url: str, song_name: Optional[str] = N
 		song_name = song_name or get_name(url)
 
 		def on_complete_override(s: Song):
-			id = database.add_song(song_name, vid_id, 0)
-			new_song = database.get_song(id)
+			s.id = database.add_song(song_name, vid_id, 0)
+			new_song = database.get_song(s.id)
 			assert new_song is not None
-
-			s.id = id
-			s.path = new_song.path()
 
 			if on_complete: on_complete(s)
 
-		s = Song(-1, song_name, "", DownloadState.Downloading)
+		db_song = DbSong(-1, song_name, vid_id, None)
+		s = Song(-1, song_name, db_song.path(), DownloadState.Downloading)
 		background_download_song(url, s, on_complete_override)
 		return s
 
@@ -148,14 +148,23 @@ def download_song(url: str, s: Song, on_complete: Optional[Callable[[Song], None
 			with __downloader_semaphore:
 				logging.info("Semaphore acquired, starting download")
 				yt_dl.download_audio(url, s.set_download_percentage)
+
+				logging.info("Download complete, starting loudness normalisation")
+				new_path = s.path + ".original"
+				os.rename(s.path, new_path)
+				ffmpeg.normalise_loudness(new_path, s.path)
+				logging.info("Loudness normalisation complete")
+
 				s.downloading = DownloadState.Downloaded
 				if on_complete: on_complete(s)
 				break
 		except:
-			logging.exception("Failed to download, setting .downloading to Error")
 			if attempts >= 2:
+				logging.exception("Failed to download, setting .downloading to Error")
 				# Only set on final failure - otherwise it will get auto-removed from the queue
 				s.downloading = DownloadState.Error
+			else:
+				logging.exception("Failed to download, retrying...")
 
 
 

@@ -81,7 +81,7 @@ def setup_routes(event_queue: "queue.Queue[Command]", song_queue: Mutex[SongQueu
 	@get("/")
 	def index():
 		user = _get_user()
-		logging.info(user.name if user else "<>")
+		logging.info((user.name if user else "<anonymous>") + " accessed index page")
 
 		with song_queue.acquire() as sq:
 			current_volume = speaker().get_volume()
